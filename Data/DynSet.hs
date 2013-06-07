@@ -7,7 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Data.DynMap where
+module Data.DynSet where
 
 import Data.Monoid (Monoid)
 import Data.Typeable
@@ -23,11 +23,10 @@ data Dictionary (c :: * -> Constraint) (a :: *) where
 data DictValue (c :: * -> Constraint) (a :: *)
   = DictValue (Dictionary c a) a
 
-newtype DynMapC (c :: * -> Constraint)
-  = DynMap (Map.Map TypeRep Any{-DictValue-})
+-- | A set of values unique by type.
+newtype DynSet (c :: * -> Constraint)
+  = DynSet (Map.Map TypeRep Any{-DictValue-})
   deriving (Monoid)
-
-type DynMap = DynMapC Typeable
 
 -- | UNSAFE_VALUE_TO_ANY :: forall a c. (c a) => a -> Any
 #define UNSAFE_VALUE_TO_ANY(c, a, x) \
@@ -42,16 +41,16 @@ type DynMap = DynMapC Typeable
 unsafeDictValueFromAny :: Any -> DictValue c a
 unsafeDictValueFromAny = unsafeCoerce
 
-empty :: DynMapC c
-empty = DynMap Map.empty
+empty :: DynSet c
+empty = DynSet Map.empty
 
 singleton
   :: forall a c f.
      ( Typeable a
      , c a
      )
-  => a -> DynMapC c
-singleton x = DynMap $ Map.singleton key value
+  => a -> DynSet c
+singleton x = DynSet $ Map.singleton key value
   where
   key = typeOf x
   value = UNSAFE_VALUE_TO_ANY(c, a, x)
@@ -61,16 +60,11 @@ insert
      ( Typeable a
      , c a
      )
-  => a -> DynMapC c -> DynMapC c
-insert x (DynMap xs) = DynMap $ Map.insert key value xs
+  => a -> DynSet c -> DynSet c
+insert x (DynSet xs) = DynSet $ Map.insert key value xs
   where
   key = typeOf x
   value = UNSAFE_VALUE_TO_ANY(c, a, x)
-
-internalError :: String -> String -> a
-internalError functionName message = error
-  $ "Data.DynMap." ++ functionName ++ ": "
-  ++ "Internal error: " ++ message
 
 adjust
   :: forall a c f.
@@ -78,8 +72,8 @@ adjust
      , c a
      )
   => (a -> a)
-  -> DynMapC c -> DynMapC c
-adjust f (DynMap xs) = DynMap $ Map.adjust ff key xs
+  -> DynSet c -> DynSet c
+adjust f (DynSet xs) = DynSet $ Map.adjust ff key xs
   where
   key = typeOf (undefined :: a)
   ff :: Any -> Any
@@ -90,8 +84,8 @@ mapTo
      ( forall a. (c a)
        => a -> b
      )
-  -> DynMapC c -> [b]
-mapTo f (DynMap xs)
+  -> DynSet c -> [b]
+mapTo f (DynSet xs)
   = fmap (f' . unsafeDictValueFromAny)
   $ Map.elems xs
   where
@@ -103,8 +97,8 @@ lookup
      ( Typeable a
      , c a
      )
-  => DynMapC c -> Maybe a
-lookup (DynMap xs)
+  => DynSet c -> Maybe a
+lookup (DynSet xs)
   = fmap (\ x -> UNSAFE_VALUE_FROM_ANY(x))
   $ Map.lookup key xs
   where key = typeOf (undefined :: a)
