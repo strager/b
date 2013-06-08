@@ -7,14 +7,10 @@
 
 module B where
 
-import Control.Applicative
-import Control.Concurrent.STM
 import Data.Foldable (asum)
 import Data.Typeable
-import System.IO.Unsafe (unsafePerformIO)
 
 import qualified Control.Exception as Ex
-import qualified Data.Map as Map
 import qualified System.Posix.Files as Posix
 import qualified System.Posix.Types as Posix
 
@@ -23,11 +19,10 @@ import B.Oracle (Oracle)
 import B.Question
 import B.RuleDatabase (RuleDatabase)
 import B.RuleSet
-import Data.DynSet (DynSet)
 
 import qualified B.Oracle as Oracle
+import qualified B.Oracle.InMemory as InMemory
 import qualified B.RuleDatabase as RuleDatabase
-import qualified Data.DynSet as DynSet
 
 build1
   :: (Question q)
@@ -51,7 +46,7 @@ build rules oracle q = do
     Just existingAnswer -> do
       mNewAnswer <- answer q existingAnswer
       case mNewAnswer of
-        Just newAnswer -> do
+        Just _ -> do
           putStrLn $ "Rebuilding: " ++ show q
           return Nothing
         Nothing -> do
@@ -93,46 +88,12 @@ putFileName (FileModTime path) = Just $ writeFile path path
 ruleDatabase :: RuleDatabase
 ruleDatabase = RuleDatabase.singleton [putFileName]
 
-data QuestionAnswer q = QuestionAnswer
-  { qaQuestion :: q
-  , qaAnswer :: Answer q
-  }
-  deriving (Typeable)
-
-type Storage = DynSet Typeable
-
-mkOracleWithStorage :: TVar Storage -> Oracle IO
-mkOracleWithStorage storageVar = Oracle.Oracle
-  { Oracle.get = get
-  , Oracle.put = put
-  }
-
-  where
-    get
-      :: forall q. (Question q)
-      => q -> IO (Maybe (Answer q))
-    get q = atomically $ do
-      storage <- readTVar storageVar
-      return $ qaAnswer
-        <$> (DynSet.lookup storage :: Maybe (QuestionAnswer q))
-
-    put
-      :: forall q. (Question q)
-      => q -> Answer q -> IO ()
-    put q a = atomically
-      $ modifyTVar storageVar
-        (DynSet.insert (QuestionAnswer q a))
-
-
-mkOracle :: IO (Oracle IO)
-mkOracle = mkOracleWithStorage <$> newTVarIO DynSet.empty
-
--- HACK
-oracle :: Oracle IO
-oracle = unsafePerformIO mkOracle
-{-# NOINLINE oracle #-}
-
 main :: IO ()
 main = do
-  answer <- build ruleDatabase oracle (FileModTime "test")
-  print answer
+  oracle <- InMemory.mkOracle
+
+  putStrLn "----- BUILDING"
+  print =<< build ruleDatabase oracle (FileModTime "test")
+
+  putStrLn "\n----- BUILDING AGAIN"
+  print =<< build ruleDatabase oracle (FileModTime "test")

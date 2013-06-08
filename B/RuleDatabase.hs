@@ -21,7 +21,6 @@ import Unsafe.Coerce (unsafeCoerce)
 
 import qualified Data.Map as Map
 
-import B.Monad
 import B.Question
 import B.RuleSet
 import Data.DynSet (DynSet)
