@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module B.Oracle.InMemory
@@ -9,42 +10,63 @@ import Control.Applicative
 import Control.Concurrent.STM
 import Data.Typeable
 
+import qualified Data.Maybe as Maybe
+
 import B.Oracle (Oracle)
 import B.Question
-import Data.DynSet (DynSet)
+import B.RuleSet
 
 import qualified B.Oracle as Oracle
-import qualified Data.DynSet as DynSet
 
-data QuestionAnswer q = QuestionAnswer
-  { _qaQuestion :: q
-  , qaAnswer :: Answer q
-  } deriving (Typeable)
+data QuestionAnswer where
+  QuestionAnswer
+    :: (Question q)
+    => q -> Answer q -> QuestionAnswer
+  deriving (Typeable)
 
-type Storage = DynSet Typeable
+data Dependency where
+  Dependency
+    :: (RuleSet from r, Question to)
+    => from -> to -> r -> Dependency
+  deriving (Typeable)
 
 mkOracle :: IO (Oracle IO)
-mkOracle = mkOracleWithStorage <$> newTVarIO DynSet.empty
+mkOracle = mkOracleWithStorage
+  <$> newTVarIO []
+  <*> newTVarIO []
 
-mkOracleWithStorage :: TVar Storage -> Oracle IO
-mkOracleWithStorage storageVar = Oracle.Oracle
+findJust :: (a -> Maybe b) -> [a] -> Maybe b
+findJust f = Maybe.listToMaybe . Maybe.mapMaybe f
+
+mkOracleWithStorage
+  :: TVar [QuestionAnswer]
+  -> TVar [Dependency]
+  -> Oracle IO
+mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
   { Oracle.get = get
   , Oracle.put = put
+  , Oracle.addDependency = addDependency
   }
 
   where
     get
       :: forall q. (Question q)
       => q -> IO (Maybe (Answer q))
-    get q = atomically $ do
-      storage <- readTVar storageVar
-      return $ qaAnswer
-        <$> (DynSet.lookup storage :: Maybe (QuestionAnswer q))
+    get q = atomically
+      $ findJust f <$> readTVar qaStorage
+      where
+      f (QuestionAnswer q' a)
+        | cast q == Just q' = cast a
+      f _ = Nothing
 
     put
       :: forall q. (Question q)
       => q -> Answer q -> IO ()
     put q a = atomically
-      $ modifyTVar storageVar
-        (DynSet.insert (QuestionAnswer q a))
+      $ modifyTVar qaStorage (QuestionAnswer q a :)
 
+    addDependency
+      :: forall from to r. (RuleSet from r, Question to)
+      => from -> to -> r -> IO ()
+    addDependency from to ruleSet = atomically
+      $ modifyTVar depStorage (Dependency from to ruleSet :)

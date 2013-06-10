@@ -45,7 +45,7 @@ empty :: DynSet c
 empty = DynSet Map.empty
 
 singleton
-  :: forall a c f.
+  :: forall a c.
      ( Typeable a
      , c a
      )
@@ -56,7 +56,7 @@ singleton x = DynSet $ Map.singleton key value
   value = UNSAFE_VALUE_TO_ANY(c, a, x)
 
 insert
-  :: forall a c f.
+  :: forall a c.
      ( Typeable a
      , c a
      )
@@ -67,7 +67,7 @@ insert x (DynSet xs) = DynSet $ Map.insert key value xs
   value = UNSAFE_VALUE_TO_ANY(c, a, x)
 
 adjust
-  :: forall a c f.
+  :: forall a c.
      ( Typeable a
      , c a
      )
@@ -80,7 +80,7 @@ adjust f (DynSet xs) = DynSet $ Map.adjust ff key xs
   ff x = UNSAFE_VALUE_TO_ANY(c, a, f UNSAFE_VALUE_FROM_ANY(x))
 
 mapTo
-  :: forall b c f.
+  :: forall b c.
      ( forall a. (c a)
        => a -> b
      )
@@ -93,7 +93,7 @@ mapTo f (DynSet xs)
   f' (DictValue Dictionary x) = f x
 
 lookup
-  :: forall a c f.
+  :: forall a c.
      ( Typeable a
      , c a
      )

@@ -31,7 +31,7 @@ import qualified Data.DynSet as DynSet
 -- 'RuleSets q'.
 newtype RuleDatabase
   = RuleDatabase (Map.Map TypeRep Any)
-  deriving (Monoid)
+  deriving (Monoid, Typeable)
 
 -- A set of rule sets keyed by type.  The question type of
 -- all rule sets must be the same.

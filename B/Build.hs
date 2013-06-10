@@ -1,53 +1,68 @@
 module B.Build
   ( build
+  , need
+  , need_
   ) where
+
+import Control.Monad
+import Control.Monad.IO.Class (liftIO)
 
 import qualified Control.Exception as Ex
 
 import B.Monad
-import B.Oracle (Oracle)
 import B.Question
-import B.RuleDatabase (RuleDatabase)
 import B.RuleSet
 
 import qualified B.Oracle as Oracle
 
+need
+  :: (Question q)
+  => q -> BuildRule (Answer q)
+need q = do
+  oracle <- liftBuild getOracle
+  BuildRuleEnv from rule <- getRule
+  liftIO $ Oracle.addDependency oracle from q rule
+  liftBuild $ build q
+
+need_
+  :: (Question q)
+  => q -> BuildRule ()
+need_ = void . need
+
 build1
   :: (Question q)
-  => RuleDatabase
-  -> q
-  -> Build ()
-build1 rules q = case executeRule rules q of
-  Just m -> m
-  Nothing -> Ex.throwIO . Ex.ErrorCall
-    $ "No rule to build " ++ show q
+  => q -> Build ()
+build1 q = do
+  rules <- getRuleDatabase
+  case executeRule rules q of
+    Just m -> withRule q rules{-FIXME-} m
+    Nothing -> liftIO . Ex.throwIO . Ex.ErrorCall
+      $ "No rule to build " ++ show q
 
 build
   :: (Question q)
-  => RuleDatabase
-  -> Oracle IO
-  -> q
-  -> Build (Answer q)
-build rules oracle q = do
-  mExistingAnswer <- Oracle.get oracle q
+  => q -> Build (Answer q)
+build q = do
+  oracle <- getOracle
+  mExistingAnswer <- liftIO $ Oracle.get oracle q
   mAnswer <- case mExistingAnswer of
     Just existingAnswer -> do
-      mNewAnswer <- answer q existingAnswer
+      mNewAnswer <- liftIO $ answer q existingAnswer
       case mNewAnswer of
         Just _ -> do
-          putStrLn $ "Rebuilding: " ++ show q
+          liftIO . putStrLn $ "Rebuilding: " ++ show q
           return Nothing
         Nothing -> do
-          putStrLn $ "Already built: " ++ show q
+          liftIO . putStrLn $ "Already built: " ++ show q
           return (Just existingAnswer)
     Nothing -> return Nothing
 
   case mAnswer of
     Just ans -> return ans
     Nothing -> do
-      putStrLn $ "Building " ++ show q ++ "..."
-      build1 rules q
-      ans <- answerAnew q
-      Oracle.put oracle q ans
-      putStrLn $ "Built " ++ show q
+      liftIO . putStrLn $ "Building " ++ show q ++ "..."
+      build1 q
+      ans <- liftIO $ answerAnew q
+      liftIO $ Oracle.put oracle q ans
+      liftIO . putStrLn $ "Built " ++ show q
       return ans

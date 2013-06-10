@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -5,6 +7,8 @@
 
 module B where
 
+import Control.Monad
+import Control.Monad.IO.Class (liftIO)
 import Data.Foldable (asum)
 import Data.Typeable
 
@@ -21,7 +25,7 @@ import qualified B.Oracle.InMemory as InMemory
 import qualified B.RuleDatabase as RuleDatabase
 
 newtype FileModTime = FileModTime FilePath
-  deriving (Show, Typeable)
+  deriving (Eq, Show, Typeable)
 
 instance Question FileModTime where
   type Answer FileModTime = Posix.EpochTime
@@ -33,11 +37,14 @@ instance Question FileModTime where
       then Just newAnswer
       else Nothing
 
-instance (Question q) => RuleSet q [q -> Maybe (Build ())] where
+instance (Question q) => RuleSet q [q -> Maybe (BuildRule ())] where
   executeRule rules q = asum $ map ($ q) rules
 
-putFileName :: FileModTime -> Maybe (Build ())
-putFileName (FileModTime path) = Just $ writeFile path path
+putFileName :: FileModTime -> Maybe (BuildRule ())
+putFileName (FileModTime path) = Just $ do
+  when (path == "test")
+    $ need_ (FileModTime "some-dep")
+  liftIO $ writeFile path path
 
 ruleDatabase :: RuleDatabase
 ruleDatabase = RuleDatabase.singleton [putFileName]
@@ -47,7 +54,13 @@ main = do
   oracle <- InMemory.mkOracle
 
   putStrLn "----- BUILDING"
-  print =<< build ruleDatabase oracle (FileModTime "test")
+  print =<< runBuild ruleDatabase oracle
+    (build (FileModTime "test"))
 
   putStrLn "\n----- BUILDING AGAIN"
-  print =<< build ruleDatabase oracle (FileModTime "test")
+  print =<< runBuild ruleDatabase oracle
+    (build (FileModTime "test"))
+
+  putStrLn "\n----- BUILDING DEP AGAIN"
+  print =<< runBuild ruleDatabase oracle
+    (build (FileModTime "some-dep"))
