@@ -41,10 +41,10 @@ instance Question FileModTime where
       else Nothing
 
 instance (Question q, Rule q r) => Rule q [r] where
-  executeRule rules q = asum $ map (`executeRule` q) rules
+  executeRule q rules = asum $ map (executeRule q) rules
 
 instance (Question q) => Rule q (q -> Maybe (BuildRule ())) where
-  executeRule = id
+  executeRule q rule = rule q
 
 putFileName :: FileModTime -> Maybe (BuildRule ())
 putFileName (FileModTime path) = Just $ do

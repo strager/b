@@ -37,7 +37,7 @@ build1 q = do
   execBuild q rules
 
 execBuild :: (Rule q r) => q -> r -> Build ()
-execBuild q rule = case executeRule rule q of
+execBuild q rule = case executeRule q rule of
   Just m -> withRule q rule{-FIXME RuleDatabase?-} m
   Nothing -> liftIO . Ex.throwIO . Ex.ErrorCall
     $ "No rule to build " ++ show q

@@ -12,4 +12,4 @@ import {-# SOURCE #-} B.Monad (BuildRule)
 import B.Question
 
 class (Question q, Typeable r) => Rule q r | r -> q where
-  executeRule :: r -> q -> Maybe (BuildRule ())
+  executeRule :: q -> r -> Maybe (BuildRule ())

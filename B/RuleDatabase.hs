@@ -39,11 +39,11 @@ newtype RuleSet q = RuleSet (DynSet (Rule q))
   deriving (Typeable)
 
 instance (Question q) => Rule q (RuleSet q) where
-  executeRule (RuleSet dynMap) q
-    = asum $ DynSet.mapTo (`executeRule` q) dynMap
+  executeRule q (RuleSet dynMap)
+    = asum $ DynSet.mapTo (executeRule q) dynMap
 
 instance (Question q) => Rule q RuleDatabase where
-  executeRule rules q = lookupRS rules >>= (`executeRule` q)
+  executeRule q rules = lookupRS rules >>= (executeRule q)
 
 insert
   :: (Typeable r, Question q, Rule q r)
