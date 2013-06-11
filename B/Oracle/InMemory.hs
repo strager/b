@@ -14,7 +14,6 @@ import qualified Data.Maybe as Maybe
 
 import B.Oracle (Oracle)
 import B.Question
-import B.Rule
 
 import qualified B.Oracle as Oracle
 
