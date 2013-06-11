@@ -1,6 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module B.Oracle.InMemory
   ( mkOracle
@@ -24,13 +22,11 @@ data QuestionAnswer where
   QuestionAnswer
     :: (Question q)
     => q -> Answer q -> QuestionAnswer
-  deriving (Typeable)
 
 data Dependency where
   Dependency
     :: (Rule from r, Question to)
     => from -> to -> r -> Dependency
-  deriving (Typeable)
 
 mkOracle :: IO (Oracle IO)
 mkOracle = mkOracleWithStorage
@@ -53,26 +49,22 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
 
   where
     get
-      :: forall q. (Question q)
-      => q -> IO (Maybe (Answer q))
+      :: (Question q) => q -> IO (Maybe (Answer q))
     get q
       = fmap (findJust f)
       $ readTVarIO qaStorage
       where
-      f :: QuestionAnswer -> Maybe (Answer q)
       f (QuestionAnswer q' a)
         | cast q == Just q' = cast a
       f _ = Nothing
 
     put
-      :: forall q. (Question q)
-      => q -> Answer q -> IO ()
+      :: (Question q) => q -> Answer q -> IO ()
     put q a = atomically
       $ modifyTVar qaStorage (QuestionAnswer q a :)
 
     dirty
-      :: forall q. (Question q)
-      => q -> STM ()
+      :: (Question q) => q -> STM ()
     dirty q = do
       modifyTVar qaStorage . filter
         $ \ (QuestionAnswer q' _) -> Just q /= cast q'
@@ -91,7 +83,7 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
             else Left dep)
 
     addDependency
-      :: forall from to r. (Rule from r, Question to)
+      :: (Rule from r, Question to)
       => from -> to -> r -> IO ()
     addDependency from to rule = atomically
       $ modifyTVar depStorage (Dependency from to rule :)
