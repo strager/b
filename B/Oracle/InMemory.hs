@@ -47,7 +47,7 @@ mkOracleWithStorage
 mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
   { Oracle.get = get
   , Oracle.put = put
-  , Oracle.dirty = dirty
+  , Oracle.dirty = atomically . dirty
   , Oracle.addDependency = addDependency
   }
 
@@ -72,20 +72,15 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
 
     dirty
       :: forall q. (Question q)
-      => q -> IO ()
-    dirty = atomically . dirty'
-
-    dirty'
-      :: forall q. (Question q)
       => q -> STM ()
-    dirty' q = do
+    dirty q = do
       modifyTVar qaStorage . filter
         $ \ (QuestionAnswer q' _) -> Just q /= cast q'
 
       deps <- readTVar depStorage
       let (deps', dependants) = f deps
       writeTVar depStorage deps'
-      forM_ dependants $ \ (Dependant q' _) -> dirty' q'
+      forM_ dependants $ \ (Dependant q' _) -> dirty q'
 
       where
       f :: [Dependency] -> ([Dependency], [Dependant])
