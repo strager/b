@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module B where
 
@@ -39,8 +40,11 @@ instance Question FileModTime where
       then Just newAnswer
       else Nothing
 
-instance (Question q) => Rule q [q -> Maybe (BuildRule ())] where
-  executeRule rules q = asum $ map ($ q) rules
+instance (Question q, Rule q r) => Rule q [r] where
+  executeRule rules q = asum $ map (`executeRule` q) rules
+
+instance (Question q) => Rule q (q -> Maybe (BuildRule ())) where
+  executeRule = id
 
 putFileName :: FileModTime -> Maybe (BuildRule ())
 putFileName (FileModTime path) = Just $ do
