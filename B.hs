@@ -11,6 +11,7 @@ import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 import Data.Foldable (asum)
 import Data.Typeable
+import System.Directory (removeFile)
 
 import qualified System.Posix.Files as Posix
 import qualified System.Posix.Types as Posix
@@ -21,6 +22,7 @@ import B.Question
 import B.RuleDatabase (RuleDatabase)
 import B.RuleSet
 
+import qualified B.Oracle as Oracle
 import qualified B.Oracle.InMemory as InMemory
 import qualified B.RuleDatabase as RuleDatabase
 
@@ -53,9 +55,24 @@ main :: IO ()
 main = do
   oracle <- InMemory.mkOracle
 
+  removeFile "test"
+  removeFile "some-dep"
+
   putStrLn "----- BUILDING"
   print =<< runBuild ruleDatabase oracle
     (build (FileModTime "test"))
+
+  putStrLn "\n----- BUILDING AGAIN"
+  print =<< runBuild ruleDatabase oracle
+    (build (FileModTime "test"))
+
+  putStrLn "\n----- BUILDING DEP AGAIN"
+  print =<< runBuild ruleDatabase oracle
+    (build (FileModTime "some-dep"))
+
+  putStrLn "\n----- TOUCHING DEP"
+  writeFile "some-dep" "hah!"
+  Oracle.dirty oracle (FileModTime "some-dep")
 
   putStrLn "\n----- BUILDING AGAIN"
   print =<< runBuild ruleDatabase oracle

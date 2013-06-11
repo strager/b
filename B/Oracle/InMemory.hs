@@ -8,11 +8,13 @@ module B.Oracle.InMemory
 
 import Control.Applicative
 import Control.Concurrent.STM
+import Control.Monad
 import Data.Typeable
 
+import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
 
-import B.Oracle (Oracle)
+import B.Oracle (Dependant(..), Oracle)
 import B.Question
 import B.RuleSet
 
@@ -45,6 +47,7 @@ mkOracleWithStorage
 mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
   { Oracle.get = get
   , Oracle.put = put
+  , Oracle.dirty = dirty
   , Oracle.addDependency = addDependency
   }
 
@@ -52,9 +55,11 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
     get
       :: forall q. (Question q)
       => q -> IO (Maybe (Answer q))
-    get q = atomically
-      $ findJust f <$> readTVar qaStorage
+    get q
+      = fmap (findJust f)
+      $ readTVarIO qaStorage
       where
+      f :: QuestionAnswer -> Maybe (Answer q)
       f (QuestionAnswer q' a)
         | cast q == Just q' = cast a
       f _ = Nothing
@@ -64,6 +69,31 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
       => q -> Answer q -> IO ()
     put q a = atomically
       $ modifyTVar qaStorage (QuestionAnswer q a :)
+
+    dirty
+      :: forall q. (Question q)
+      => q -> IO ()
+    dirty = atomically . dirty'
+
+    dirty'
+      :: forall q. (Question q)
+      => q -> STM ()
+    dirty' q = do
+      modifyTVar qaStorage . filter
+        $ \ (QuestionAnswer q' _) -> Just q /= cast q'
+
+      deps <- readTVar depStorage
+      let (deps', dependants) = f deps
+      writeTVar depStorage deps'
+      forM_ dependants $ \ (Dependant q' _) -> dirty' q'
+
+      where
+      f :: [Dependency] -> ([Dependency], [Dependant])
+      f = Either.partitionEithers . map
+        (\ dep@(Dependency from to r)
+          -> if cast q == Just to
+            then Right $ Dependant from r
+            else Left dep)
 
     addDependency
       :: forall from to r. (RuleSet from r, Question to)

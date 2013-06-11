@@ -34,10 +34,13 @@ build1
   => q -> Build ()
 build1 q = do
   rules <- getRuleDatabase
-  case executeRule rules q of
-    Just m -> withRule q rules{-FIXME-} m
-    Nothing -> liftIO . Ex.throwIO . Ex.ErrorCall
-      $ "No rule to build " ++ show q
+  execBuild q rules
+
+execBuild :: (RuleSet q r) => q -> r -> Build ()
+execBuild q rule = case executeRule rule q of
+  Just m -> withRule q rule{-FIXME RuleDatabase?-} m
+  Nothing -> liftIO . Ex.throwIO . Ex.ErrorCall
+    $ "No rule to build " ++ show q
 
 build
   :: (Question q)

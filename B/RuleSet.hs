@@ -1,7 +1,10 @@
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module B.RuleSet where
+module B.RuleSet
+  ( RuleSet(..)
+  ) where
 
 import Data.Typeable (Typeable)
 
