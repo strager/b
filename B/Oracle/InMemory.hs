@@ -36,6 +36,23 @@ mkOracle = mkOracleWithStorage
 findJust :: (a -> Maybe b) -> [a] -> Maybe b
 findJust f = Maybe.listToMaybe . Maybe.mapMaybe f
 
+editTVar :: (a -> (a, b)) -> TVar a -> STM b
+editTVar f var = do
+  x <- readTVar var
+  let (x', ret) = f x
+  writeTVar var x'
+  return ret
+
+dropDependants
+  :: (Question q)
+  => q -> [Dependency] -> ([Dependency], [Dependant])
+dropDependants q = Either.partitionEithers . map f
+  where
+  f (Dependency from to r)
+    | cast q == Just to
+    = Right $ Dependant from r
+  f dep = Left dep
+
 mkOracleWithStorage
   :: TVar [QuestionAnswer]
   -> TVar [Dependency]
@@ -48,8 +65,7 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
   }
 
   where
-    get
-      :: (Question q) => q -> IO (Maybe (Answer q))
+    get :: (Question q) => q -> IO (Maybe (Answer q))
     get q
       = fmap (findJust f)
       $ readTVarIO qaStorage
@@ -58,29 +74,16 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
         | cast q == Just q' = cast a
       f _ = Nothing
 
-    put
-      :: (Question q) => q -> Answer q -> IO ()
+    put :: (Question q) => q -> Answer q -> IO ()
     put q a = atomically
       $ modifyTVar qaStorage (QuestionAnswer q a :)
 
-    dirty
-      :: (Question q) => q -> STM ()
+    dirty :: (Question q) => q -> STM ()
     dirty q = do
       modifyTVar qaStorage . filter
         $ \ (QuestionAnswer q' _) -> Just q /= cast q'
-
-      deps <- readTVar depStorage
-      let (deps', dependants) = f deps
-      writeTVar depStorage deps'
+      dependants <- editTVar (dropDependants q) depStorage
       forM_ dependants $ \ (Dependant q' _) -> dirty q'
-
-      where
-      f :: [Dependency] -> ([Dependency], [Dependant])
-      f = Either.partitionEithers . map
-        (\ dep@(Dependency from to r)
-          -> if cast q == Just to
-            then Right $ Dependant from r
-            else Left dep)
 
     addDependency
       :: (Rule from r, Question to)
