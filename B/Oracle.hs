@@ -1,4 +1,3 @@
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE Rank2Types #-}
 
 module B.Oracle
