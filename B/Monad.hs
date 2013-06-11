@@ -22,7 +22,7 @@ import Data.Typeable (Typeable)
 
 import B.Oracle
 import B.RuleDatabase
-import B.RuleSet (RuleSet)
+import B.Rule (Rule)
 
 newtype Build a = Build (ReaderT BuildEnv IO a)
   deriving (Functor, Applicative, Monad, MonadIO)
@@ -36,9 +36,7 @@ newtype BuildRule a = BuildRule (ReaderT BuildRuleEnv Build a)
   deriving (Functor, Applicative, Monad, MonadIO, Typeable)
 
 data BuildRuleEnv where
-  BuildRuleEnv
-    :: (RuleSet q r)
-    => q -> r -> BuildRuleEnv
+  BuildRuleEnv :: (Rule q r) => q -> r -> BuildRuleEnv
 
 runBuild :: RuleDatabase -> Oracle IO -> Build a -> IO a
 runBuild ruleDatabase' oracle' (Build m)
@@ -47,7 +45,7 @@ runBuild ruleDatabase' oracle' (Build m)
     , oracle = oracle'
     }
 
-withRule :: (RuleSet q r) => q -> r -> BuildRule a -> Build a
+withRule :: (Rule q r) => q -> r -> BuildRule a -> Build a
 withRule q r (BuildRule m) = runReaderT m
   $ BuildRuleEnv q r
 

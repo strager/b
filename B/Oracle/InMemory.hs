@@ -16,7 +16,7 @@ import qualified Data.Maybe as Maybe
 
 import B.Oracle (Dependant(..), Oracle)
 import B.Question
-import B.RuleSet
+import B.Rule
 
 import qualified B.Oracle as Oracle
 
@@ -28,7 +28,7 @@ data QuestionAnswer where
 
 data Dependency where
   Dependency
-    :: (RuleSet from r, Question to)
+    :: (Rule from r, Question to)
     => from -> to -> r -> Dependency
   deriving (Typeable)
 
@@ -91,7 +91,7 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
             else Left dep)
 
     addDependency
-      :: forall from to r. (RuleSet from r, Question to)
+      :: forall from to r. (Rule from r, Question to)
       => from -> to -> r -> IO ()
-    addDependency from to ruleSet = atomically
-      $ modifyTVar depStorage (Dependency from to ruleSet :)
+    addDependency from to rule = atomically
+      $ modifyTVar depStorage (Dependency from to rule :)

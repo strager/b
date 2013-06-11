@@ -20,7 +20,7 @@ import B.Build
 import B.Monad
 import B.Question
 import B.RuleDatabase (RuleDatabase)
-import B.RuleSet
+import B.Rule
 
 import qualified B.Oracle as Oracle
 import qualified B.Oracle.InMemory as InMemory
@@ -39,7 +39,7 @@ instance Question FileModTime where
       then Just newAnswer
       else Nothing
 
-instance (Question q) => RuleSet q [q -> Maybe (BuildRule ())] where
+instance (Question q) => Rule q [q -> Maybe (BuildRule ())] where
   executeRule rules q = asum $ map ($ q) rules
 
 putFileName :: FileModTime -> Maybe (BuildRule ())

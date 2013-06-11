@@ -22,7 +22,7 @@ import Unsafe.Coerce (unsafeCoerce)
 import qualified Data.Map as Map
 
 import B.Question
-import B.RuleSet
+import B.Rule
 import Data.DynSet (DynSet)
 
 import qualified Data.DynSet as DynSet
@@ -35,18 +35,18 @@ newtype RuleDatabase
 
 -- A set of rule sets keyed by type.  The question type of
 -- all rule sets must be the same.
-newtype RuleSets q = RuleSets (DynSet (RuleSet q))
+newtype RuleSets q = RuleSets (DynSet (Rule q))
   deriving (Typeable)
 
-instance (Question q) => RuleSet q (RuleSets q) where
+instance (Question q) => Rule q (RuleSets q) where
   executeRule (RuleSets dynMap) q
     = asum $ DynSet.mapTo (`executeRule` q) dynMap
 
-instance (Question q) => RuleSet q RuleDatabase where
+instance (Question q) => Rule q RuleDatabase where
   executeRule rules q = lookupRS rules >>= (`executeRule` q)
 
 insert
-  :: forall q r. (Typeable r, Question q, RuleSet q r)
+  :: forall q r. (Typeable r, Question q, Rule q r)
   => r -> RuleDatabase -> RuleDatabase
 insert x xs = singleton x <> xs
 
@@ -65,6 +65,6 @@ singletonRS x = RuleDatabase
   where key = typeOf (undefined :: q)
 
 singleton
-  :: forall q r. (Typeable r, RuleSet q r)
+  :: forall q r. (Typeable r, Rule q r)
   => r -> RuleDatabase
 singleton x = singletonRS (RuleSets (DynSet.singleton x))

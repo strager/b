@@ -7,7 +7,7 @@ module B.Oracle
   ) where
 
 import B.Question
-import B.RuleSet
+import B.Rule
 
 data Oracle m = Oracle
   { get :: (Question q) => q -> m (Maybe (Answer q))
@@ -16,9 +16,9 @@ data Oracle m = Oracle
   , dirty :: (Question q) => q -> m ()
 
   , addDependency
-    :: (RuleSet from r, Question to)
+    :: (Rule from r, Question to)
     => from -> to -> r{-undefined-} -> m ()
   }
 
 data Dependant where
-  Dependant :: (RuleSet q r) => q -> r -> Dependant
+  Dependant :: (Rule q r) => q -> r -> Dependant

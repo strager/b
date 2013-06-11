@@ -11,7 +11,7 @@ import qualified Control.Exception as Ex
 
 import B.Monad
 import B.Question
-import B.RuleSet
+import B.Rule
 
 import qualified B.Oracle as Oracle
 
@@ -36,7 +36,7 @@ build1 q = do
   rules <- getRuleDatabase
   execBuild q rules
 
-execBuild :: (RuleSet q r) => q -> r -> Build ()
+execBuild :: (Rule q r) => q -> r -> Build ()
 execBuild q rule = case executeRule rule q of
   Just m -> withRule q rule{-FIXME RuleDatabase?-} m
   Nothing -> liftIO . Ex.throwIO . Ex.ErrorCall
