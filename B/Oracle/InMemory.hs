@@ -12,7 +12,7 @@ import Data.Typeable
 import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
 
-import B.Oracle (Dependant(..), Oracle)
+import B.Oracle (Oracle)
 import B.Question
 import B.Rule
 
@@ -25,8 +25,8 @@ data QuestionAnswer where
 
 data Dependency where
   Dependency
-    :: (Rule from r, Question to)
-    => from -> to -> r -> Dependency
+    :: (Question from, Question to)
+    => from -> to -> Dependency
 
 mkOracle :: IO (Oracle IO)
 mkOracle = mkOracleWithStorage
@@ -45,12 +45,12 @@ editTVar f var = do
 
 dropDependants
   :: (Question q)
-  => q -> [Dependency] -> ([Dependency], [Dependant])
+  => q -> [Dependency] -> ([Dependency], [AQuestion])
 dropDependants q = Either.partitionEithers . map f
   where
-  f (Dependency from to r)
+  f (Dependency from to)
     | cast q == Just to
-    = Right $ Dependant from r
+    = Right $ AQuestion from
   f dep = Left dep
 
 mkOracleWithStorage
@@ -83,10 +83,10 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
       modifyTVar qaStorage . filter
         $ \ (QuestionAnswer q' _) -> Just q /= cast q'
       dependants <- editTVar (dropDependants q) depStorage
-      forM_ dependants $ \ (Dependant q' _) -> dirty q'
+      forM_ dependants $ \ (AQuestion q') -> dirty q'
 
     addDependency
-      :: (Rule from r, Question to)
-      => from -> to -> r -> IO ()
-    addDependency from to rule = atomically
-      $ modifyTVar depStorage (Dependency from to rule :)
+      :: (Question from, Question to)
+      => from -> to -> IO ()
+    addDependency from to = atomically
+      $ modifyTVar depStorage (Dependency from to :)

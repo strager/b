@@ -5,12 +5,11 @@
 module B.Monad
   ( Build
   , BuildRule
-  , BuildRuleEnv(..)
   , runBuild
   , withRule
   , getRuleDatabase
   , getOracle
-  , getRule
+  , getQuestion
   , liftBuild
   ) where
 
@@ -21,8 +20,8 @@ import Control.Monad.Trans.Reader
 import Data.Typeable (Typeable)
 
 import B.Oracle
+import B.Question
 import B.RuleDatabase
-import B.Rule (Rule)
 
 newtype Build a = Build (ReaderT BuildEnv IO a)
   deriving (Functor, Applicative, Monad, MonadIO)
@@ -32,11 +31,8 @@ data BuildEnv = BuildEnv
   , oracle :: Oracle IO
   }
 
-newtype BuildRule a = BuildRule (ReaderT BuildRuleEnv Build a)
+newtype BuildRule a = BuildRule (ReaderT AQuestion Build a)
   deriving (Functor, Applicative, Monad, MonadIO, Typeable)
-
-data BuildRuleEnv where
-  BuildRuleEnv :: (Rule q r) => q -> r -> BuildRuleEnv
 
 runBuild :: RuleDatabase -> Oracle IO -> Build a -> IO a
 runBuild ruleDatabase' oracle' (Build m)
@@ -45,9 +41,9 @@ runBuild ruleDatabase' oracle' (Build m)
     , oracle = oracle'
     }
 
-withRule :: (Rule q r) => q -> r -> BuildRule a -> Build a
-withRule q r (BuildRule m) = runReaderT m
-  $ BuildRuleEnv q r
+withRule :: (Question q) => q -> BuildRule a -> Build a
+withRule q (BuildRule m) = runReaderT m
+  $ AQuestion q
 
 getRuleDatabase :: Build RuleDatabase
 getRuleDatabase = Build $ asks ruleDatabase
@@ -55,8 +51,8 @@ getRuleDatabase = Build $ asks ruleDatabase
 getOracle :: Build (Oracle IO)
 getOracle = Build $ asks oracle
 
-getRule :: BuildRule BuildRuleEnv
-getRule = BuildRule ask
+getQuestion :: BuildRule AQuestion
+getQuestion = BuildRule ask
 
 liftBuild :: Build a -> BuildRule a
 liftBuild m = BuildRule $ lift m

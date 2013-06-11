@@ -5,7 +5,7 @@
 
 module B.Question
   ( Question(..)
-  {- , AQuestion(..) -}
+  , AQuestion(..)
   ) where
 
 import Data.Typeable
@@ -18,10 +18,8 @@ class (Value q, Value (Answer q)) => Question q where
   answer :: q -> Answer q -> IO (Maybe (Answer q))
   answer q _oldAnswer{-FIXME Should be used-} = fmap Just $ answerAnew q
 
-{-
 data AQuestion where
   AQuestion :: (Question q) => q -> AQuestion
 
 instance Eq AQuestion where
   AQuestion a == AQuestion b = cast a == Just b
--}

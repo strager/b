@@ -20,8 +20,8 @@ need
   => q -> BuildRule (Answer q)
 need q = do
   oracle <- liftBuild getOracle
-  BuildRuleEnv from rule <- getRule
-  liftIO $ Oracle.addDependency oracle from q rule
+  AQuestion from <- getQuestion
+  liftIO $ Oracle.addDependency oracle from q
   liftBuild $ build q
 
 need_
@@ -38,7 +38,7 @@ build1 q = do
 
 execBuild :: (Rule q r) => q -> r -> Build ()
 execBuild q rule = case executeRule q rule of
-  Just m -> withRule q rule{-FIXME RuleDatabase?-} m
+  Just m -> withRule q m
   Nothing -> liftIO . Ex.throwIO . Ex.ErrorCall
     $ "No rule to build " ++ show q
 
