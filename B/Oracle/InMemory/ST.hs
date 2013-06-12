@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-
 module B.Oracle.InMemory.ST
   ( mkSTOracle
   ) where
