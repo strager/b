@@ -7,6 +7,7 @@ module B.Build
 import Control.Monad
 import Control.Monad.Trans.Class
 
+import B.Log
 import B.Monad
 import B.Question
 import B.Rule
@@ -37,7 +38,7 @@ build1 q = do
 execBuild :: (Rule q m r) => q -> r -> Build m ()
 execBuild q rule = case executeRule q rule of
   Just m -> withRule q m
-  Nothing -> logBuild $ "No rule to build: " ++ show q
+  Nothing -> logBuild $ NoRuleError q
 
 build
   :: (Monad m, Question m q)
@@ -50,19 +51,19 @@ build q = do
       mNewAnswer <- lift $ answer q existingAnswer
       case mNewAnswer of
         Just _ -> do
-          logBuild $ "Rebuilding: " ++ show q
+          logBuild $ Rebuilding q
           return Nothing
         Nothing -> do
-          logBuild $ "Already built: " ++ show q
-          return (Just existingAnswer)
+          logBuild $ AlreadyBuilt q
+          return $ Just existingAnswer
     Nothing -> return Nothing
 
   case mAnswer of
     Just ans -> return ans
     Nothing -> do
-      logBuild $ "Building " ++ show q ++ "..."
+      logBuild $ Building q
       build1 q
       ans <- lift $ answerAnew q
       lift $ Oracle.put oracle q ans
-      logBuild $ "Built " ++ show q
+      logBuild $ DoneBuilding q
       return ans

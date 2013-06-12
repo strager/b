@@ -4,7 +4,6 @@
 module B.Monad
   ( Build
   , BuildRule
-  , LogMessage
   , runBuild
   , withRule
   , getRuleDatabase
@@ -20,6 +19,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader
 
+import B.Log (LogMessage)
 import B.Oracle
 import B.Question
 import B.RuleDatabase
@@ -48,8 +48,6 @@ newtype BuildRule m a = BuildRule (ReaderT (AQuestion m) (Build m) a)
   , Monad
   , MonadIO
   )
-
-type LogMessage = String
 
 runBuild
   :: RuleDatabase m
