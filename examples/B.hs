@@ -6,8 +6,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module B where
-
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Foldable (asum)
