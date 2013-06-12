@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -28,42 +29,41 @@ import qualified Data.DynSet as DynSet
 
 -- | A map from a question type 'q' to a value of type
 -- 'RuleSet q'.
-newtype RuleDatabase
+newtype RuleDatabase (m :: * -> *)
   = RuleDatabase (Map.Map TypeRep Any)
-  deriving (Monoid, Typeable)
+  deriving (Monoid)
 
 -- A set of rule sets keyed by type.  The question type of
 -- all rule sets must be the same.
-newtype RuleSet q = RuleSet (DynSet (Rule q))
-  deriving (Typeable)
+newtype RuleSet q m = RuleSet (DynSet (Rule q m))
 
-instance (Question q) => Rule q (RuleSet q) where
+instance (Question q, Monad m) => Rule q m (RuleSet q m) where
   executeRule q (RuleSet dynMap)
     = asum $ DynSet.mapTo (executeRule q) dynMap
 
-instance (Question q) => Rule q RuleDatabase where
+instance (Question q, Monad m) => Rule q m (RuleDatabase m) where
   executeRule q rules = lookupRS rules >>= (executeRule q)
 
 insert
-  :: (Typeable r, Question q, Rule q r)
-  => r -> RuleDatabase -> RuleDatabase
+  :: (Rule q m r, Typeable r)
+  => r -> RuleDatabase m -> RuleDatabase m
 insert x xs = singleton x <> xs
 
 lookupRS
-  :: forall q. (Question q)
-  => RuleDatabase -> Maybe (RuleSet q)
+  :: forall q m. (Question q, Monad m)
+  => RuleDatabase m -> Maybe (RuleSet q m)
 lookupRS (RuleDatabase xs)
   = unsafeCoerce $ Map.lookup key xs
   where key = typeOf (undefined :: q)
 
 singletonRS
-  :: forall q. (Question q)
-  => RuleSet q -> RuleDatabase
+  :: forall q m. (Question q, Monad m)
+  => RuleSet q m -> RuleDatabase m
 singletonRS x = RuleDatabase
   $ Map.singleton key (unsafeCoerce x)
   where key = typeOf (undefined :: q)
 
 singleton
-  :: (Typeable r, Rule q r)
-  => r -> RuleDatabase
+  :: (Rule q m r, Typeable r)
+  => r -> RuleDatabase m
 singleton x = singletonRS (RuleSet (DynSet.singleton x))

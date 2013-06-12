@@ -1,3 +1,5 @@
+{-# LANGUAGE KindSignatures #-}
+
 module B.Monad where
 
-data BuildRule a
+data BuildRule (m :: * -> *) (a :: *)

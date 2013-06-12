@@ -16,42 +16,53 @@ import Control.Applicative
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Reader
-import Data.Typeable (Typeable)
 
 import B.Oracle
 import B.Question
 import B.RuleDatabase
 
-newtype Build a = Build (ReaderT BuildEnv IO a)
-  deriving (Functor, Applicative, Monad, MonadIO)
+newtype Build m a = Build (ReaderT (BuildEnv m) m a)
+  deriving
+  ( Applicative
+  , Functor
+  , Monad
+  , MonadIO
+  )
 
-data BuildEnv = BuildEnv
-  { ruleDatabase :: RuleDatabase
-  , oracle :: Oracle IO
+instance MonadTrans Build where
+  lift = Build . lift
+
+data BuildEnv m = BuildEnv
+  { ruleDatabase :: RuleDatabase m
+  , oracle :: Oracle m
   }
 
-newtype BuildRule a = BuildRule (ReaderT AQuestion Build a)
-  deriving (Functor, Applicative, Monad, MonadIO, Typeable)
+newtype BuildRule m a = BuildRule (ReaderT AQuestion (Build m) a)
+  deriving
+  ( Applicative
+  , Functor
+  , Monad
+  , MonadIO
+  )
 
-runBuild :: RuleDatabase -> Oracle IO -> Build a -> IO a
+runBuild :: RuleDatabase m -> Oracle m -> Build m a -> m a
 runBuild ruleDatabase' oracle' (Build m)
   = runReaderT m BuildEnv
     { ruleDatabase = ruleDatabase'
     , oracle = oracle'
     }
 
-withRule :: (Question q) => q -> BuildRule a -> Build a
-withRule q (BuildRule m) = runReaderT m
-  $ AQuestion q
+withRule :: (Question q) => q -> BuildRule m a -> Build m a
+withRule q (BuildRule m) = runReaderT m $ AQuestion q
 
-getRuleDatabase :: Build RuleDatabase
+getRuleDatabase :: (Monad m) => Build m (RuleDatabase m)
 getRuleDatabase = Build $ asks ruleDatabase
 
-getOracle :: Build (Oracle IO)
+getOracle :: (Monad m) => Build m (Oracle m)
 getOracle = Build $ asks oracle
 
-getQuestion :: BuildRule AQuestion
+getQuestion :: (Monad m) => BuildRule m AQuestion
 getQuestion = BuildRule ask
 
-liftBuild :: Build a -> BuildRule a
+liftBuild :: (Monad m) => Build m a -> BuildRule m a
 liftBuild m = BuildRule $ lift m

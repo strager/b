@@ -5,7 +5,8 @@ module B.Build
   ) where
 
 import Control.Monad
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
 
 import qualified Control.Exception as Ex
 
@@ -16,38 +17,39 @@ import B.Rule
 import qualified B.Oracle as Oracle
 
 need
-  :: (Question q)
-  => q -> BuildRule (Answer q)
+  :: (MonadIO m, Monad m, Question q)
+  => q -> BuildRule m (Answer q)
 need q = do
   oracle <- liftBuild getOracle
   AQuestion from <- getQuestion
-  liftIO $ Oracle.addDependency oracle from q
+  liftBuild . lift $ Oracle.addDependency oracle from q
   liftBuild $ build q
 
 need_
-  :: (Question q)
-  => q -> BuildRule ()
+  :: (MonadIO m, Functor m, Monad m, Question q)
+  => q -> BuildRule m ()
 need_ = void . need
 
 build1
-  :: (Question q)
-  => q -> Build ()
+  :: (Monad m, Question q)
+  => q -> Build m ()
 build1 q = do
   rules <- getRuleDatabase
   execBuild q rules
 
-execBuild :: (Rule q r) => q -> r -> Build ()
+execBuild :: (Rule q m r) => q -> r -> Build m ()
 execBuild q rule = case executeRule q rule of
   Just m -> withRule q m
-  Nothing -> liftIO . Ex.throwIO . Ex.ErrorCall
-    $ "No rule to build " ++ show q
+  Nothing -> {-liftIO . Ex.throwIO . Ex.ErrorCall
+    $ "No rule to build " ++ show q-}
+    error "fail"
 
 build
-  :: (Question q)
-  => q -> Build (Answer q)
+  :: (MonadIO m, Monad m, Question q)
+  => q -> Build m (Answer q)
 build q = do
   oracle <- getOracle
-  mExistingAnswer <- liftIO $ Oracle.get oracle q
+  mExistingAnswer <- lift $ Oracle.get oracle q
   mAnswer <- case mExistingAnswer of
     Just existingAnswer -> do
       mNewAnswer <- liftIO $ answer q existingAnswer
@@ -66,6 +68,6 @@ build q = do
       liftIO . putStrLn $ "Building " ++ show q ++ "..."
       build1 q
       ans <- liftIO $ answerAnew q
-      liftIO $ Oracle.put oracle q ans
+      lift $ Oracle.put oracle q ans
       liftIO . putStrLn $ "Built " ++ show q
       return ans

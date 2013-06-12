@@ -5,10 +5,8 @@ module B.Rule
   ( Rule(..)
   ) where
 
-import Data.Typeable (Typeable)
-
 import {-# SOURCE #-} B.Monad (BuildRule)
 import B.Question
 
-class (Question q, Typeable r) => Rule q r | r -> q where
-  executeRule :: q -> r -> Maybe (BuildRule ())
+class (Question q, Monad m) => Rule q m r | r -> q m where
+  executeRule :: q -> r -> Maybe (BuildRule m ())

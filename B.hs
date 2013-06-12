@@ -40,20 +40,23 @@ instance Question FileModTime where
       then Just newAnswer
       else Nothing
 
-instance (Question q, Rule q r) => Rule q [r] where
+instance (Question q, Rule q m r) => Rule q m [r] where
   executeRule q rules = asum $ map (executeRule q) rules
 
-instance (Question q) => Rule q (q -> Maybe (BuildRule ())) where
-  executeRule q rule = rule q
+newtype FunctionIO q = Function (q -> Maybe (BuildRule IO ()))
+  deriving (Typeable)
 
-putFileName :: FileModTime -> Maybe (BuildRule ())
+instance (Question q) => Rule q IO (FunctionIO q) where
+  executeRule q (Function rule) = rule q
+
+putFileName :: FileModTime -> Maybe (BuildRule IO ())
 putFileName (FileModTime path) = Just $ do
   when (path == "test")
     $ need_ (FileModTime "some-dep")
   liftIO $ writeFile path path
 
-ruleDatabase :: RuleDatabase
-ruleDatabase = RuleDatabase.singleton [putFileName]
+ruleDatabase :: RuleDatabase IO
+ruleDatabase = RuleDatabase.singleton [Function putFileName]
 
 main :: IO ()
 main = do
