@@ -1,8 +1,6 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -34,14 +32,8 @@ newtype DynSet (c :: * -> Constraint)
   = DynSet (Map.Map TypeRep Any{-DictValue-})
   deriving (Monoid)
 
--- | UNSAFE_VALUE_TO_ANY :: forall a c. (c a) => a -> Any
-#define UNSAFE_VALUE_TO_ANY(c, a, x) \
-  (unsafeCoerce (DictValue (Dictionary :: Dictionary c a) (x)))
-
--- | Constraint instances come from outside.
--- | UNSAFE_VALUE_FROM_ANY :: (c a) => Any -> a
-#define UNSAFE_VALUE_FROM_ANY(x) \
-  (let DictValue Dictionary __dynmap_a = unsafeCoerce (x) in __dynmap_a)
+unsafeDictValueToAny :: forall a c. (c a) => a -> DictValue c a
+unsafeDictValueToAny x = (DictValue (Dictionary :: Dictionary c a) (x))
 
 -- | Constraint instances are provided.
 unsafeDictValueFromAny :: Any -> DictValue c a
@@ -53,7 +45,7 @@ singleton
 singleton x = DynSet $ Map.singleton key value
   where
   key = typeOf x
-  value = UNSAFE_VALUE_TO_ANY(c, a, x)
+  value = unsafeCoerce (unsafeDictValueToAny x :: DictValue c a)
 
 insert
   :: forall a c. (Typeable a, c a)
@@ -61,7 +53,7 @@ insert
 insert x (DynSet xs) = DynSet $ Map.insert key value xs
   where
   key = typeOf x
-  value = UNSAFE_VALUE_TO_ANY(c, a, x)
+  value = unsafeCoerce (unsafeDictValueToAny x :: DictValue c a)
 
 mapTo
   :: forall b c.
@@ -78,6 +70,7 @@ lookup
   :: forall a c. (Typeable a, c a)
   => DynSet c -> Maybe a
 lookup (DynSet xs)
-  = fmap (\ x -> UNSAFE_VALUE_FROM_ANY(x))
-  $ Map.lookup key xs
-  where key = typeOf (undefined :: a)
+  = fmap f $ Map.lookup key xs
+  where
+  key = typeOf (undefined :: a)
+  f x = let DictValue Dictionary x' = unsafeCoerce x in x'
