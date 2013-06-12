@@ -61,7 +61,7 @@ ruleDatabase = RuleDatabase.singleton [Function putFileName]
 
 main :: IO ()
 main = do
-  oracle <- InMemory.mkOracle
+  oracle <- InMemory.mkSTMOracle
 
   removeFile "test"
   removeFile "some-dep"
