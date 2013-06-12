@@ -65,26 +65,22 @@ main = do
   removeFile "test"
   removeFile "some-dep"
 
+  let run = runBuild ruleDatabase oracle putStrLn
   putStrLn "----- BUILDING"
-  print =<< runBuild ruleDatabase oracle
-    (build (FileModTime "test"))
+  print =<< run (build (FileModTime "test"))
 
   putStrLn "\n----- BUILDING AGAIN"
-  print =<< runBuild ruleDatabase oracle
-    (build (FileModTime "test"))
+  print =<< run (build (FileModTime "test"))
 
   putStrLn "\n----- BUILDING DEP AGAIN"
-  print =<< runBuild ruleDatabase oracle
-    (build (FileModTime "some-dep"))
+  print =<< run (build (FileModTime "some-dep"))
 
   putStrLn "\n----- TOUCHING DEP"
   writeFile "some-dep" "hah!"
   Oracle.dirty oracle (FileModTime "some-dep")
 
   putStrLn "\n----- BUILDING AGAIN"
-  print =<< runBuild ruleDatabase oracle
-    (build (FileModTime "test"))
+  print =<< run (build (FileModTime "test"))
 
   putStrLn "\n----- BUILDING DEP AGAIN"
-  print =<< runBuild ruleDatabase oracle
-    (build (FileModTime "some-dep"))
+  print =<< run (build (FileModTime "some-dep"))

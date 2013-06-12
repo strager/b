@@ -40,9 +40,7 @@ build1 q = do
 execBuild :: (Rule q m r) => q -> r -> Build m ()
 execBuild q rule = case executeRule q rule of
   Just m -> withRule q m
-  Nothing -> {-liftIO . Ex.throwIO . Ex.ErrorCall
-    $ "No rule to build " ++ show q-}
-    error "fail"
+  Nothing -> logBuild $ "No rule to build: " ++ show q
 
 build
   :: (MonadIO m, Monad m, Question q)
@@ -55,19 +53,19 @@ build q = do
       mNewAnswer <- liftIO $ answer q existingAnswer
       case mNewAnswer of
         Just _ -> do
-          liftIO . putStrLn $ "Rebuilding: " ++ show q
+          logBuild $ "Rebuilding: " ++ show q
           return Nothing
         Nothing -> do
-          liftIO . putStrLn $ "Already built: " ++ show q
+          logBuild $ "Already built: " ++ show q
           return (Just existingAnswer)
     Nothing -> return Nothing
 
   case mAnswer of
     Just ans -> return ans
     Nothing -> do
-      liftIO . putStrLn $ "Building " ++ show q ++ "..."
+      logBuild $ "Building " ++ show q ++ "..."
       build1 q
       ans <- liftIO $ answerAnew q
       lift $ Oracle.put oracle q ans
-      liftIO . putStrLn $ "Built " ++ show q
+      logBuild $ "Built " ++ show q
       return ans

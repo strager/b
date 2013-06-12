@@ -4,12 +4,15 @@
 module B.Monad
   ( Build
   , BuildRule
+  , LogMessage
   , runBuild
   , withRule
   , getRuleDatabase
   , getOracle
   , getQuestion
   , liftBuild
+  , logBuild
+  , logRule
   ) where
 
 import Control.Applicative
@@ -35,6 +38,7 @@ instance MonadTrans Build where
 data BuildEnv m = BuildEnv
   { ruleDatabase :: RuleDatabase m
   , oracle :: Oracle m
+  , logger :: LogMessage -> m ()
   }
 
 newtype BuildRule m a = BuildRule (ReaderT AQuestion (Build m) a)
@@ -45,11 +49,19 @@ newtype BuildRule m a = BuildRule (ReaderT AQuestion (Build m) a)
   , MonadIO
   )
 
-runBuild :: RuleDatabase m -> Oracle m -> Build m a -> m a
-runBuild ruleDatabase' oracle' (Build m)
+type LogMessage = String
+
+runBuild
+  :: RuleDatabase m
+  -> Oracle m
+  -> (LogMessage -> m ())
+  -> Build m a
+  -> m a
+runBuild ruleDatabase' oracle' logger' (Build m)
   = runReaderT m BuildEnv
     { ruleDatabase = ruleDatabase'
     , oracle = oracle'
+    , logger = logger'
     }
 
 withRule :: (Question q) => q -> BuildRule m a -> Build m a
@@ -66,3 +78,11 @@ getQuestion = BuildRule ask
 
 liftBuild :: (Monad m) => Build m a -> BuildRule m a
 liftBuild m = BuildRule $ lift m
+
+logBuild :: (Monad m) => LogMessage -> Build m ()
+logBuild message = do
+  l <- Build $ asks logger
+  lift $ l message
+
+logRule :: (Monad m) => LogMessage -> BuildRule m ()
+logRule = liftBuild . logBuild
