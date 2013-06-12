@@ -41,7 +41,7 @@ data BuildEnv m = BuildEnv
   , logger :: LogMessage -> m ()
   }
 
-newtype BuildRule m a = BuildRule (ReaderT AQuestion (Build m) a)
+newtype BuildRule m a = BuildRule (ReaderT (AQuestion m) (Build m) a)
   deriving
   ( Applicative
   , Functor
@@ -64,7 +64,7 @@ runBuild ruleDatabase' oracle' logger' (Build m)
     , logger = logger'
     }
 
-withRule :: (Question q) => q -> BuildRule m a -> Build m a
+withRule :: (Question m q) => q -> BuildRule m a -> Build m a
 withRule q (BuildRule m) = runReaderT m $ AQuestion q
 
 getRuleDatabase :: (Monad m) => Build m (RuleDatabase m)
@@ -73,7 +73,7 @@ getRuleDatabase = Build $ asks ruleDatabase
 getOracle :: (Monad m) => Build m (Oracle m)
 getOracle = Build $ asks oracle
 
-getQuestion :: (Monad m) => BuildRule m AQuestion
+getQuestion :: (Monad m) => BuildRule m (AQuestion m)
 getQuestion = BuildRule ask
 
 liftBuild :: (Monad m) => Build m a -> BuildRule m a

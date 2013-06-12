@@ -8,5 +8,5 @@ module B.Rule
 import {-# SOURCE #-} B.Monad (BuildRule)
 import B.Question
 
-class (Question q, Monad m) => Rule q m r | r -> q m where
+class (Question m q) => Rule q m r | r -> q m where
   executeRule :: q -> r -> Maybe (BuildRule m ())

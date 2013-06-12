@@ -9,7 +9,7 @@
 module B where
 
 import Control.Monad
-import Control.Monad.IO.Class (liftIO)
+import Control.Monad.IO.Class
 import Data.Foldable (asum)
 import Data.Typeable
 import System.Directory (removeFile)
@@ -30,23 +30,24 @@ import qualified B.RuleDatabase as RuleDatabase
 newtype FileModTime = FileModTime FilePath
   deriving (Eq, Show, Typeable)
 
-instance Question FileModTime where
+instance (MonadIO m) => Question m FileModTime where
   type Answer FileModTime = Posix.EpochTime
   answerAnew (FileModTime path)
-    = fmap Posix.modificationTime $ Posix.getFileStatus path
+    = liftM Posix.modificationTime
+    . liftIO $ Posix.getFileStatus path
   answer mtime oldAnswer = do
     newAnswer <- answerAnew mtime
     return $ if newAnswer > oldAnswer
       then Just newAnswer
       else Nothing
 
-instance (Question q, Rule q m r) => Rule q m [r] where
+instance (Question m q, Rule q m r) => Rule q m [r] where
   executeRule q rules = asum $ map (executeRule q) rules
 
 newtype FunctionIO q = Function (q -> Maybe (BuildRule IO ()))
   deriving (Typeable)
 
-instance (Question q) => Rule q IO (FunctionIO q) where
+instance (Question IO q) => Rule q IO (FunctionIO q) where
   executeRule q (Function rule) = rule q
 
 putFileName :: FileModTime -> Maybe (BuildRule IO ())

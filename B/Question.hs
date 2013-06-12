@@ -1,6 +1,8 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module B.Question
@@ -8,18 +10,20 @@ module B.Question
   , AQuestion(..)
   ) where
 
+import Control.Monad (liftM)
 import Data.Typeable
 
 type Value a = (Eq a, Show a, Typeable a)
 
-class (Value q, Value (Answer q)) => Question q where
+class (Monad m, Value q, Value (Answer q))
+  => Question m q | q -> m where
   type Answer q :: *
-  answerAnew :: q -> IO (Answer q)
-  answer :: q -> Answer q -> IO (Maybe (Answer q))
-  answer q _oldAnswer{-FIXME Should be used-} = fmap Just $ answerAnew q
+  answerAnew :: q -> m (Answer q)
+  answer :: q -> Answer q -> m (Maybe (Answer q))
+  answer q _oldAnswer{-FIXME Should be used-} = liftM Just $ answerAnew q
 
-data AQuestion where
-  AQuestion :: (Question q) => q -> AQuestion
+data AQuestion m where
+  AQuestion :: (Question m q) => q -> AQuestion m
 
-instance Eq AQuestion where
+instance Eq (AQuestion m) where
   AQuestion a == AQuestion b = cast a == Just b

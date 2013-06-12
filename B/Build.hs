@@ -5,10 +5,7 @@ module B.Build
   ) where
 
 import Control.Monad
-import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
-
-import qualified Control.Exception as Ex
 
 import B.Monad
 import B.Question
@@ -17,7 +14,7 @@ import B.Rule
 import qualified B.Oracle as Oracle
 
 need
-  :: (MonadIO m, Monad m, Question q)
+  :: (Monad m, Question m q)
   => q -> BuildRule m (Answer q)
 need q = do
   oracle <- liftBuild getOracle
@@ -26,12 +23,12 @@ need q = do
   liftBuild $ build q
 
 need_
-  :: (MonadIO m, Functor m, Monad m, Question q)
+  :: (Functor m, Monad m, Question m q)
   => q -> BuildRule m ()
 need_ = void . need
 
 build1
-  :: (Monad m, Question q)
+  :: (Monad m, Question m q)
   => q -> Build m ()
 build1 q = do
   rules <- getRuleDatabase
@@ -43,14 +40,14 @@ execBuild q rule = case executeRule q rule of
   Nothing -> logBuild $ "No rule to build: " ++ show q
 
 build
-  :: (MonadIO m, Monad m, Question q)
+  :: (Monad m, Question m q)
   => q -> Build m (Answer q)
 build q = do
   oracle <- getOracle
   mExistingAnswer <- lift $ Oracle.get oracle q
   mAnswer <- case mExistingAnswer of
     Just existingAnswer -> do
-      mNewAnswer <- liftIO $ answer q existingAnswer
+      mNewAnswer <- lift $ answer q existingAnswer
       case mNewAnswer of
         Just _ -> do
           logBuild $ "Rebuilding: " ++ show q
@@ -65,7 +62,7 @@ build q = do
     Nothing -> do
       logBuild $ "Building " ++ show q ++ "..."
       build1 q
-      ans <- liftIO $ answerAnew q
+      ans <- lift $ answerAnew q
       lift $ Oracle.put oracle q ans
       logBuild $ "Built " ++ show q
       return ans

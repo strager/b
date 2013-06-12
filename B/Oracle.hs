@@ -7,12 +7,12 @@ module B.Oracle
 import B.Question
 
 data Oracle m = Oracle
-  { get :: (Question q) => q -> m (Maybe (Answer q))
-  , put :: (Question q) => q -> Answer q -> m ()
+  { get :: (Question m q) => q -> m (Maybe (Answer q))
+  , put :: (Question m q) => q -> Answer q -> m ()
 
-  , dirty :: (Question q) => q -> m ()
+  , dirty :: (Question m q) => q -> m ()
 
   , addDependency
-    :: (Question from, Question to)
+    :: (Question m from, Question m to)
     => from -> to -> m ()
   }

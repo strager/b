@@ -37,11 +37,11 @@ newtype RuleDatabase (m :: * -> *)
 -- all rule sets must be the same.
 newtype RuleSet q m = RuleSet (DynSet (Rule q m))
 
-instance (Question q, Monad m) => Rule q m (RuleSet q m) where
+instance (Question m q) => Rule q m (RuleSet q m) where
   executeRule q (RuleSet dynMap)
     = asum $ DynSet.mapTo (executeRule q) dynMap
 
-instance (Question q, Monad m) => Rule q m (RuleDatabase m) where
+instance (Question m q) => Rule q m (RuleDatabase m) where
   executeRule q rules = lookupRS rules >>= (executeRule q)
 
 insert
@@ -50,14 +50,14 @@ insert
 insert x xs = singleton x <> xs
 
 lookupRS
-  :: forall q m. (Question q, Monad m)
+  :: forall q m. (Question m q, Monad m)
   => RuleDatabase m -> Maybe (RuleSet q m)
 lookupRS (RuleDatabase xs)
   = unsafeCoerce $ Map.lookup key xs
   where key = typeOf (undefined :: q)
 
 singletonRS
-  :: forall q m. (Question q, Monad m)
+  :: forall q m. (Question m q, Monad m)
   => RuleSet q m -> RuleDatabase m
 singletonRS x = RuleDatabase
   $ Map.singleton key (unsafeCoerce x)

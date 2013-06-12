@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 
 module B.Oracle.InMemory
@@ -17,15 +18,15 @@ import B.Question
 
 import qualified B.Oracle as Oracle
 
-data QuestionAnswer where
+data QuestionAnswer m where
   QuestionAnswer
-    :: (Question q)
-    => q -> Answer q -> QuestionAnswer
+    :: (Question m q)
+    => q -> Answer q -> QuestionAnswer m
 
-data Dependency where
+data Dependency m where
   Dependency
-    :: (Question from, Question to)
-    => from -> to -> Dependency
+    :: (Question m from, Question m to)
+    => from -> to -> Dependency m
 
 mkOracle :: IO (Oracle IO)
 mkOracle = mkOracleWithStorage
@@ -43,8 +44,8 @@ editTVar f var = do
   return ret
 
 dropDependants
-  :: (Question q)
-  => q -> [Dependency] -> ([Dependency], [AQuestion])
+  :: (Question m q)
+  => q -> [Dependency m] -> ([Dependency m], [AQuestion m])
 dropDependants q = Either.partitionEithers . map f
   where
   f (Dependency from to)
@@ -53,8 +54,8 @@ dropDependants q = Either.partitionEithers . map f
   f dep = Left dep
 
 mkOracleWithStorage
-  :: TVar [QuestionAnswer]
-  -> TVar [Dependency]
+  :: TVar [QuestionAnswer IO]
+  -> TVar [Dependency IO]
   -> Oracle IO
 mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
   { Oracle.get = get
@@ -64,7 +65,7 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
   }
 
   where
-    get :: (Question q) => q -> IO (Maybe (Answer q))
+    get :: (Question IO q) => q -> IO (Maybe (Answer q))
     get q
       = fmap (findJust f)
       $ readTVarIO qaStorage
@@ -73,11 +74,11 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
         | cast q == Just q' = cast a
       f _ = Nothing
 
-    put :: (Question q) => q -> Answer q -> IO ()
+    put :: (Question IO q) => q -> Answer q -> IO ()
     put q a = atomically
       $ modifyTVar qaStorage (QuestionAnswer q a :)
 
-    dirty :: (Question q) => q -> STM ()
+    dirty :: (Question IO q) => q -> STM ()
     dirty q = do
       modifyTVar qaStorage . filter
         $ \ (QuestionAnswer q' _) -> Just q /= cast q'
@@ -85,7 +86,7 @@ mkOracleWithStorage qaStorage depStorage = Oracle.Oracle
       forM_ dependants $ \ (AQuestion q') -> dirty q'
 
     addDependency
-      :: (Question from, Question to)
+      :: (Question IO from, Question IO to)
       => from -> to -> IO ()
     addDependency from to = atomically
       $ modifyTVar depStorage (Dependency from to :)
