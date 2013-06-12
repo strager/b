@@ -7,7 +7,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Data.DynSet where
+module Data.DynSet
+  ( DynSet
+  , singleton
+  , insert
+  , mapTo
+  , lookup
+  ) where
 
 import Data.Monoid (Monoid)
 import Data.Typeable
@@ -41,14 +47,8 @@ newtype DynSet (c :: * -> Constraint)
 unsafeDictValueFromAny :: Any -> DictValue c a
 unsafeDictValueFromAny = unsafeCoerce
 
-empty :: DynSet c
-empty = DynSet Map.empty
-
 singleton
-  :: forall a c.
-     ( Typeable a
-     , c a
-     )
+  :: forall a c. (Typeable a, c a)
   => a -> DynSet c
 singleton x = DynSet $ Map.singleton key value
   where
@@ -56,34 +56,16 @@ singleton x = DynSet $ Map.singleton key value
   value = UNSAFE_VALUE_TO_ANY(c, a, x)
 
 insert
-  :: forall a c.
-     ( Typeable a
-     , c a
-     )
+  :: forall a c. (Typeable a, c a)
   => a -> DynSet c -> DynSet c
 insert x (DynSet xs) = DynSet $ Map.insert key value xs
   where
   key = typeOf x
   value = UNSAFE_VALUE_TO_ANY(c, a, x)
 
-adjust
-  :: forall a c.
-     ( Typeable a
-     , c a
-     )
-  => (a -> a)
-  -> DynSet c -> DynSet c
-adjust f (DynSet xs) = DynSet $ Map.adjust ff key xs
-  where
-  key = typeOf (undefined :: a)
-  ff :: Any -> Any
-  ff x = UNSAFE_VALUE_TO_ANY(c, a, f UNSAFE_VALUE_FROM_ANY(x))
-
 mapTo
   :: forall b c.
-     ( forall a. (c a)
-       => a -> b
-     )
+     (forall a. (c a) => a -> b)
   -> DynSet c -> [b]
 mapTo f (DynSet xs)
   = fmap (f' . unsafeDictValueFromAny)
@@ -93,10 +75,7 @@ mapTo f (DynSet xs)
   f' (DictValue Dictionary x) = f x
 
 lookup
-  :: forall a c.
-     ( Typeable a
-     , c a
-     )
+  :: forall a c. (Typeable a, c a)
   => DynSet c -> Maybe a
 lookup (DynSet xs)
   = fmap (\ x -> UNSAFE_VALUE_FROM_ANY(x))
