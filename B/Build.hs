@@ -28,42 +28,38 @@ need_
   => q -> BuildRule m ()
 need_ = void . need
 
-build1
-  :: (Monad m, Question m q)
-  => q -> Build m ()
-build1 q = do
-  rules <- getRuleDatabase
-  execBuild q rules
-
-execBuild :: (Rule q m r) => q -> r -> Build m ()
-execBuild q rule = case executeRule q rule of
-  Just m -> withRule q m
-  Nothing -> logBuild $ NoRuleError q
-
 build
   :: (Monad m, Question m q)
   => q -> Build m (Answer q)
 build q = do
   oracle <- getOracle
   mExistingAnswer <- lift $ Oracle.get oracle q
-  mAnswer <- case mExistingAnswer of
+  case mExistingAnswer of
     Just existingAnswer -> do
       mNewAnswer <- lift $ answer q existingAnswer
       case mNewAnswer of
         Just _ -> do
           logBuild $ Rebuilding q
-          return Nothing
+          actuallyBuild q
         Nothing -> do
           logBuild $ AlreadyBuilt q
-          return $ Just existingAnswer
-    Nothing -> return Nothing
+          return existingAnswer
+    Nothing -> actuallyBuild q
 
-  case mAnswer of
-    Just ans -> return ans
-    Nothing -> do
+actuallyBuild
+  :: (Question m q)
+  => q -> Build m (Answer q)
+actuallyBuild q = do
+  rules <- getRuleDatabase
+  case executeRule q rules of
+    Just m -> do
       logBuild $ Building q
-      build1 q
+      withRule q m
       ans <- lift $ answerAnew q
+      oracle <- getOracle
       lift $ Oracle.put oracle q ans
       logBuild $ DoneBuilding q
       return ans
+    Nothing -> do
+      logBuild $ NoRuleError q
+      lift $ answerAnew q
