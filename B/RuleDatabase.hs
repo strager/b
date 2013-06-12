@@ -42,7 +42,7 @@ instance (Question m q) => Rule q m (RuleSet q m) where
     = asum $ DynSet.mapTo (executeRule q) dynMap
 
 instance (Question m q) => Rule q m (RuleDatabase m) where
-  executeRule q rules = lookupRS rules >>= (executeRule q)
+  executeRule q rules = lookupRS rules >>= executeRule q
 
 insert
   :: (Rule q m r, Typeable r)

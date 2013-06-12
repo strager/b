@@ -28,3 +28,5 @@ mkSTOracleWithStorage storage = Oracle.Oracle
   , Oracle.addDependency = \ from to
     -> modifySTRef storage (Pure.addDependency from to)
   }
+{-# ANN mkSTOracleWithStorage ("HLint: ignore Avoid lambda" :: String) #-}
+{-# ANN module ("HLint: ignore Redundant bracket" :: String) #-}

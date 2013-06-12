@@ -33,3 +33,5 @@ mkSTMOracleWithStorage storage = Oracle.Oracle
   , Oracle.addDependency = \ from to -> liftIO . atomically
     $ modifyTVar storage (Pure.addDependency from to)
   }
+{-# ANN mkSTMOracleWithStorage ("HLint: ignore Avoid lambda" :: String) #-}
+{-# ANN module ("HLint: ignore Redundant bracket" :: String) #-}
