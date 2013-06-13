@@ -10,7 +10,8 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.Foldable (asum)
 import Data.Typeable
-import System.Directory (removeFile)
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath ((</>))
 
 import qualified System.Posix.Files as Posix
 import qualified System.Posix.Types as Posix
@@ -43,10 +44,13 @@ newtype FunctionIO q = Function (q -> Maybe (BuildRule IO ()))
 instance (Question IO q) => Rule q IO (FunctionIO q) where
   executeRule q (Function rule) = rule q
 
+root :: FilePath
+root = "example-build-dir"
+
 putFileName :: FileModTime -> Maybe (BuildRule IO ())
 putFileName (FileModTime path) = Just $ do
-  when (path == "test")
-    $ need_ (FileModTime "some-dep")
+  when (path == root </> "test")
+    $ need_ (FileModTime (root </> "some-dep"))
   liftIO $ writeFile path path
 
 ruleDatabase :: RuleDatabase IO
@@ -56,26 +60,25 @@ main :: IO ()
 main = do
   oracle <- InMemory.mkSTMOracle
 
-  removeFile "test"
-  removeFile "some-dep"
+  createDirectoryIfMissing True root
 
   let logMessage x = putStrLn ("> " ++ show x)
   let run = runBuild ruleDatabase oracle logMessage
   putStrLn "Building"
-  print =<< run (build (FileModTime "test"))
+  print =<< run (build (FileModTime (root </> "test")))
 
   putStrLn "\nBuilding again"
-  print =<< run (build (FileModTime "test"))
+  print =<< run (build (FileModTime (root </> "test")))
 
   putStrLn "\nBuilding dep again"
-  print =<< run (build (FileModTime "some-dep"))
+  print =<< run (build (FileModTime (root </> "some-dep")))
 
   putStrLn "\nTouching dep"
-  writeFile "some-dep" "hah!"
-  Oracle.dirty oracle (FileModTime "some-dep")
+  writeFile (root </> "some-dep") "hah!"
+  Oracle.dirty oracle (FileModTime (root </> "some-dep"))
 
   putStrLn "\nBuilding again"
-  print =<< run (build (FileModTime "test"))
+  print =<< run (build (FileModTime (root </> "test")))
 
   putStrLn "\nBuilding dep again"
-  print =<< run (build (FileModTime "some-dep"))
+  print =<< run (build (FileModTime (root </> "some-dep")))
