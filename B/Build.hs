@@ -36,14 +36,8 @@ build q = do
   mExistingAnswer <- lift $ Oracle.get oracle q
   case mExistingAnswer of
     Just existingAnswer -> do
-      mNewAnswer <- lift $ answer q existingAnswer
-      case mNewAnswer of
-        Just _ -> do
-          logBuild $ Rebuilding q
-          actuallyBuild q
-        Nothing -> do
-          logBuild $ AlreadyBuilt q
-          return existingAnswer
+      logBuild $ AlreadyBuilt q
+      return existingAnswer
     Nothing -> actuallyBuild q
 
 actuallyBuild
@@ -55,11 +49,11 @@ actuallyBuild q = do
     Just m -> do
       logBuild $ Building q
       withRule q m
-      ans <- lift $ answerAnew q
+      ans <- lift $ answer q
       oracle <- getOracle
       lift $ Oracle.put oracle q ans
       logBuild $ DoneBuilding q
       return ans
     Nothing -> do
       logBuild $ NoRuleError q
-      lift $ answerAnew q
+      lift $ answer q

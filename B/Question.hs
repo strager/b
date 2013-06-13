@@ -10,7 +10,6 @@ module B.Question
   , AQuestion(..)
   ) where
 
-import Control.Monad (liftM)
 import Data.Typeable
 
 type Value a = (Eq a, Show a, Typeable a)
@@ -18,9 +17,7 @@ type Value a = (Eq a, Show a, Typeable a)
 class (Monad m, Value q, Value (Answer q))
   => Question m q | q -> m where
   type Answer q :: *
-  answerAnew :: q -> m (Answer q)
-  answer :: q -> Answer q -> m (Maybe (Answer q))
-  answer q _oldAnswer{-FIXME Should be used-} = liftM Just $ answerAnew q
+  answer :: q -> m (Answer q)
 
 data AQuestion m where
   AQuestion :: (Question m q) => q -> AQuestion m

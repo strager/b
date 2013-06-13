@@ -30,14 +30,9 @@ newtype FileModTime = FileModTime FilePath
 
 instance (MonadIO m) => Question m FileModTime where
   type Answer FileModTime = Posix.EpochTime
-  answerAnew (FileModTime path)
+  answer (FileModTime path)
     = liftM Posix.modificationTime
     . liftIO $ Posix.getFileStatus path
-  answer mtime oldAnswer = do
-    newAnswer <- answerAnew mtime
-    return $ if newAnswer > oldAnswer
-      then Just newAnswer
-      else Nothing
 
 instance (Question m q, Rule q m r) => Rule q m [r] where
   executeRule q rules = asum $ map (executeRule q) rules
