@@ -46,3 +46,16 @@ executable example-B
     unix ==2.6.*
 
   ghc-options: -Wall
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Spec.hs
+
+  build-depends:
+    b,
+    base ==4.6.*,
+    hspec == 1.5.*,
+    transformers ==0.3.*
+
+  ghc-options: -Wall

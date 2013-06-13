@@ -2,6 +2,8 @@
 
 module B.Oracle.InMemory.Pure
   ( State
+  , mkOracle
+
   , empty
   , get
   , put
@@ -9,16 +11,32 @@ module B.Oracle.InMemory.Pure
   , addDependency
   ) where
 
+import Control.Monad
 import Data.Typeable
 
 import qualified Data.Either as Either
 import qualified Data.Maybe as Maybe
 
+import B.Oracle (Oracle)
 import B.Question
+
+import qualified B.Oracle as Oracle
 
 data State m = State
   { questionAnswers :: [QuestionAnswer m]
   , dependencies :: [Dependency m]
+  }
+
+mkOracle
+  :: (Monad m)
+  => m (State m)  -- ^ 'get'/'read'/'ask'
+  -> ((State m -> State m) -> m ())  -- ^ 'modify'
+  -> Oracle m
+mkOracle ask modify = Oracle.Oracle
+  { Oracle.get = \ q -> liftM (get q) ask
+  , Oracle.put = (modify .) . put
+  , Oracle.dirty = modify . dirty
+  , Oracle.addDependency = (modify .) . addDependency
   }
 
 data QuestionAnswer m where

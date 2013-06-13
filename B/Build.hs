@@ -24,9 +24,9 @@ need q = do
   liftBuild $ build q
 
 need_
-  :: (Functor m, Monad m, Question m q)
+  :: (Monad m, Question m q)
   => q -> BuildRule m ()
-need_ = void . need
+need_ = liftM (const ()) . need
 
 build
   :: (Monad m, Question m q)

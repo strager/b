@@ -24,3 +24,6 @@ data AQuestion m where
 
 instance Eq (AQuestion m) where
   AQuestion a == AQuestion b = cast a == Just b
+
+instance Show (AQuestion m) where
+  showsPrec prec (AQuestion q) = showsPrec prec q

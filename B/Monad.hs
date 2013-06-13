@@ -38,7 +38,7 @@ instance MonadTrans Build where
 data BuildEnv m = BuildEnv
   { ruleDatabase :: RuleDatabase m
   , oracle :: Oracle m
-  , logger :: LogMessage -> m ()
+  , logger :: LogMessage m -> m ()
   }
 
 newtype BuildRule m a = BuildRule (ReaderT (AQuestion m) (Build m) a)
@@ -52,7 +52,7 @@ newtype BuildRule m a = BuildRule (ReaderT (AQuestion m) (Build m) a)
 runBuild
   :: RuleDatabase m
   -> Oracle m
-  -> (LogMessage -> m ())
+  -> (LogMessage m -> m ())
   -> Build m a
   -> m a
 runBuild ruleDatabase' oracle' logger' (Build m)
@@ -77,10 +77,10 @@ getQuestion = BuildRule ask
 liftBuild :: (Monad m) => Build m a -> BuildRule m a
 liftBuild m = BuildRule $ lift m
 
-logBuild :: (Monad m) => LogMessage -> Build m ()
+logBuild :: (Monad m) => LogMessage m -> Build m ()
 logBuild message = do
   l <- Build $ asks logger
   lift $ l message
 
-logRule :: (Monad m) => LogMessage -> BuildRule m ()
+logRule :: (Monad m) => LogMessage m -> BuildRule m ()
 logRule = liftBuild . logBuild
