@@ -1,5 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 module B.Rule
   ( Rule(..)
@@ -8,5 +8,5 @@ module B.Rule
 import {-# SOURCE #-} B.Monad (BuildRule)
 import B.Question
 
-class (Question m q) => Rule q m r | r -> q m where
-  executeRule :: q -> r -> Maybe (BuildRule m ())
+class (Question q) => Rule q r | r -> q where
+  executeRule :: q -> r -> Maybe (BuildRule (AnswerMonad q) ())

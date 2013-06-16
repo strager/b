@@ -22,12 +22,12 @@ library
     B.Oracle.InMemory.STM,
     B.Question,
     B.Rule,
-    B.RuleDatabase,
-    Data.DynSet
+    B.RuleDatabase
 
   build-depends:
     base ==4.6.*,
     containers ==0.5.*,
+    semigroups ==0.9.*,
     stm ==2.4.*,
     transformers ==0.3.*
 
@@ -54,8 +54,10 @@ test-suite spec
 
   build-depends:
     b,
-    base ==4.6.*,
+    base,
+    containers,
     hspec == 1.5.*,
-    transformers ==0.3.*
+    semigroups,
+    transformers
 
   ghc-options: -Wall

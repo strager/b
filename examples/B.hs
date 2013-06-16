@@ -29,19 +29,20 @@ import qualified B.RuleDatabase as RuleDatabase
 newtype FileModTime = FileModTime FilePath
   deriving (Eq, Show, Typeable)
 
-instance (MonadIO m) => Question m FileModTime where
+instance Question FileModTime where
   type Answer FileModTime = Posix.EpochTime
+  type AnswerMonad FileModTime = IO
   answer (FileModTime path)
     = liftM Posix.modificationTime
     . liftIO $ Posix.getFileStatus path
 
-instance (Question m q, Rule q m r) => Rule q m [r] where
+instance (Question q, Rule q r) => Rule q [r] where
   executeRule q rules = asum $ map (executeRule q) rules
 
 newtype FunctionIO q = Function (q -> Maybe (BuildRule IO ()))
   deriving (Typeable)
 
-instance (Question IO q) => Rule q IO (FunctionIO q) where
+instance (Question q, IO ~ AnswerMonad q) => Rule q (FunctionIO q) where
   executeRule q (Function rule) = rule q
 
 root :: FilePath

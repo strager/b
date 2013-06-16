@@ -1,69 +1,153 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module B.RuleDatabase
   ( RuleDatabase
+  , empty
   , insert
   , singleton
+  , fromList
   ) where
 
 import Data.Foldable (asum)
-import Data.Monoid hiding (Any)
+import Data.Semigroup hiding (Any)
 import Data.Typeable
 import GHC.Exts (Any)
 import Prelude hiding (lookup)
 import Unsafe.Coerce (unsafeCoerce)
 
-import qualified Data.Map as Map
-
+import Data.Map (Map)
 import B.Question
 import B.Rule
-import Data.DynSet (DynSet)
 
-import qualified Data.DynSet as DynSet
+import qualified Data.Map as Map
 
--- | A map from a question type 'q' to a value of type
--- 'RuleSet q'.
-newtype RuleDatabase (m :: * -> *)
-  = RuleDatabase (Map.Map TypeRep Any)
-  deriving (Monoid)
+-- RuleDatabase m = [(Question q, m ~ AnswerMonad q)
+--   => (q, DynSet ((RuleSet q r, Semigroup r) => r))]
+newtype RuleDatabase (m :: * -> *) = RuleDatabase
+  (Map TypeRep{-q-} Any{-RuleSet m q-})
 
--- A set of rule sets keyed by type.  The question type of
--- all rule sets must be the same.
-newtype RuleSet q m = RuleSet (DynSet (Rule q m))
+instance Show (RuleDatabase m) where
+  show (RuleDatabase xs) = show $ Map.size xs
 
-instance (Question m q) => Rule q m (RuleSet q m) where
-  executeRule q (RuleSet dynMap)
-    = asum $ DynSet.mapTo (executeRule q) dynMap
+instance Monoid (RuleDatabase m) where
+  mempty = RuleDatabase Map.empty
+  RuleDatabase a `mappend` RuleDatabase b
+    = RuleDatabase $ Map.unionWith f a b
+    where
+    f :: Any -> Any -> Any
+    f x y = unsafeCoerce
+      $ mappendRuleSets (unsafeCoerce x) (unsafeCoerce y)
 
-instance (Question m q) => Rule q m (RuleDatabase m) where
-  executeRule q rules = lookupRS rules >>= executeRule q
+instance Semigroup (RuleDatabase m)
+
+instance (Question q, m ~ AnswerMonad q) => Rule q (RuleDatabase m) where
+  executeRule q db
+    = lookupRuleSet db >>= executeRule q
+
+lookupRuleSet
+  :: forall m q. (Typeable q)
+  => RuleDatabase m -> Maybe (RuleSet m q)
+lookupRuleSet (RuleDatabase xs)
+  = fmap (unsafeCoerce :: Any -> RuleSet m q)
+  $ Map.lookup (typeOf (undefined :: q)) xs
+
+data RuleSet m q where
+  RuleSet :: (Question q, m ~ AnswerMonad q)
+    => Map TypeRep{-r-} Any{-ARule m q r-}
+    -> RuleSet m q
+
+instance (Question q, m ~ AnswerMonad q) => Rule q (RuleSet m q) where
+  executeRule q ruleSet
+    = asum $ mapTo (executeRule q) ruleSet
+
+mapTo
+  :: forall b m q.
+     (forall r. (Rule q r) => r -> b)
+  -> RuleSet m q -> [b]
+mapTo f (RuleSet xs)
+  = fmap (f' . unsafeCoerce)
+  $ Map.elems xs
+  where
+  f' :: ARule m q r -> b
+  f' (ARule r) = f r
+
+data ARule m q r where
+  ARule
+    :: ( Question q
+       , m ~ AnswerMonad q
+       , Rule q r
+       , Semigroup r
+       , Typeable r
+       )
+    => r -> ARule m q r
+
+mappendRuleSets
+  :: forall m q. RuleSet m q -> RuleSet m q -> RuleSet m q
+RuleSet a `mappendRuleSets` RuleSet b
+  = RuleSet $ Map.unionWith f a b
+    where
+    f :: Any -> Any -> Any
+    f x y = unsafeCoerce $ mappendRules
+      (unsafeCoerce x :: ARule m q r)
+      (unsafeCoerce y :: ARule m q r)
+
+mappendRules :: ARule m q r -> ARule m q r -> ARule m q r
+ARule a `mappendRules` ARule b = ARule $ case cast a of
+  Just a' -> a' <> b
+  Nothing -> error "mappendRules: Type mismatch"
+
+empty :: RuleDatabase m
+empty = mempty
 
 insert
-  :: (Rule q m r, Typeable r)
+  :: ( Question q
+     , m ~ AnswerMonad q
+     , Rule q r
+     , Typeable r
+     , Semigroup r
+     )
   => r -> RuleDatabase m -> RuleDatabase m
 insert x xs = singleton x <> xs
 
-lookupRS
-  :: forall q m. (Question m q, Monad m)
-  => RuleDatabase m -> Maybe (RuleSet q m)
-lookupRS (RuleDatabase xs)
-  = unsafeCoerce $ Map.lookup key xs
-  where key = typeOf (undefined :: q)
-
-singletonRS
-  :: forall q m. (Question m q, Monad m)
-  => RuleSet q m -> RuleDatabase m
-singletonRS x = RuleDatabase
-  $ Map.singleton key (unsafeCoerce x)
-  where key = typeOf (undefined :: q)
-
 singleton
-  :: (Rule q m r, Typeable r)
+  :: forall q m r.
+     ( Question q
+     , m ~ AnswerMonad q
+     , Rule q r
+     , Typeable r
+     , Semigroup r
+     )
   => r -> RuleDatabase m
-singleton x = singletonRS (RuleSet (DynSet.singleton x))
+singleton x
+  = RuleDatabase $ Map.singleton
+    (typeOf (undefined :: q))
+    $ unsafeCoerce $ singletonRuleSet x
+
+singletonRuleSet
+  :: forall q m r.
+     ( Question q
+     , m ~ AnswerMonad q
+     , Rule q r
+     , Typeable r
+     , Semigroup r
+     )
+  => r -> RuleSet m q
+singletonRuleSet x = RuleSet $ Map.singleton
+  (typeOf (undefined :: r))
+  (unsafeCoerce (ARule x))
+
+fromList
+  :: ( Question q
+     , m ~ AnswerMonad q
+     , Rule q r
+     , Typeable r
+     , Semigroup r
+     )
+  => [r] -> RuleDatabase m
+fromList = mconcat . map singleton

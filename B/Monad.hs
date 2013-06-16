@@ -1,5 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module B.Monad
   ( Build
@@ -38,7 +38,7 @@ instance MonadTrans Build where
 data BuildEnv m = BuildEnv
   { ruleDatabase :: RuleDatabase m
   , oracle :: Oracle m
-  , logger :: LogMessage m -> m ()
+  , logger :: LogMessage -> m ()
   }
 
 newtype BuildRule m a = BuildRule (ReaderT (AQuestion m) (Build m) a)
@@ -52,7 +52,7 @@ newtype BuildRule m a = BuildRule (ReaderT (AQuestion m) (Build m) a)
 runBuild
   :: RuleDatabase m
   -> Oracle m
-  -> (LogMessage m -> m ())
+  -> (LogMessage -> m ())
   -> Build m a
   -> m a
 runBuild ruleDatabase' oracle' logger' (Build m)
@@ -62,7 +62,9 @@ runBuild ruleDatabase' oracle' logger' (Build m)
     , logger = logger'
     }
 
-withRule :: (Question m q) => q -> BuildRule m a -> Build m a
+withRule
+  :: (Question q, m ~ AnswerMonad q)
+  => q -> BuildRule m a -> Build m a
 withRule q (BuildRule m) = runReaderT m $ AQuestion q
 
 getRuleDatabase :: (Monad m) => Build m (RuleDatabase m)
@@ -77,10 +79,10 @@ getQuestion = BuildRule ask
 liftBuild :: (Monad m) => Build m a -> BuildRule m a
 liftBuild m = BuildRule $ lift m
 
-logBuild :: (Monad m) => LogMessage m -> Build m ()
+logBuild :: (Monad m) => LogMessage -> Build m ()
 logBuild message = do
   l <- Build $ asks logger
   lift $ l message
 
-logRule :: (Monad m) => LogMessage m -> BuildRule m ()
+logRule :: (Monad m) => LogMessage -> BuildRule m ()
 logRule = liftBuild . logBuild

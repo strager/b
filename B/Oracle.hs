@@ -1,4 +1,5 @@
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module B.Oracle
   ( Oracle(..)
@@ -7,12 +8,16 @@ module B.Oracle
 import B.Question
 
 data Oracle m = Oracle
-  { get :: (Question m q) => q -> m (Maybe (Answer q))
-  , put :: (Question m q) => q -> Answer q -> m ()
+  { get :: (Question q, m ~ AnswerMonad q) => q -> m (Maybe (Answer q))
+  , put :: (Question q, m ~ AnswerMonad q) => q -> Answer q -> m ()
 
-  , dirty :: (Question m q) => q -> m ()
+  , dirty :: (Question q, m ~ AnswerMonad q) => q -> AnswerMonad q ()
 
   , addDependency
-    :: (Question m from, Question m to)
+    :: ( Question from
+       , Question to
+       , m ~ AnswerMonad from
+       , m ~ AnswerMonad to
+       )
     => from -> to -> m ()
   }

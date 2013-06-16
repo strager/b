@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTs #-}
+
 module B.Build
   ( build
   , need
@@ -15,7 +17,7 @@ import B.Rule
 import qualified B.Oracle as Oracle
 
 need
-  :: (Monad m, Question m q)
+  :: (Monad m, Question q, m ~ AnswerMonad q)
   => q -> BuildRule m (Answer q)
 need q = do
   oracle <- liftBuild getOracle
@@ -24,12 +26,12 @@ need q = do
   liftBuild $ build q
 
 need_
-  :: (Monad m, Question m q)
+  :: (Monad m, Question q, m ~ AnswerMonad q)
   => q -> BuildRule m ()
 need_ = liftM (const ()) . need
 
 build
-  :: (Monad m, Question m q)
+  :: (Monad m, Question q, m ~ AnswerMonad q)
   => q -> Build m (Answer q)
 build q = do
   oracle <- getOracle
@@ -41,7 +43,7 @@ build q = do
     Nothing -> actuallyBuild q
 
 actuallyBuild
-  :: (Question m q)
+  :: (Question q, m ~ AnswerMonad q)
   => q -> Build m (Answer q)
 actuallyBuild q = do
   rules <- getRuleDatabase

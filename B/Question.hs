@@ -1,6 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -14,13 +13,14 @@ import Data.Typeable
 
 type Value a = (Eq a, Show a, Typeable a)
 
-class (Monad m, Value q, Value (Answer q))
-  => Question m q | q -> m where
+class (Monad (AnswerMonad q), Value q, Value (Answer q))
+  => Question q where
   type Answer q :: *
-  answer :: q -> m (Answer q)
+  type AnswerMonad q :: * -> *
+  answer :: q -> AnswerMonad q (Answer q)
 
 data AQuestion m where
-  AQuestion :: (Question m q) => q -> AQuestion m
+  AQuestion :: (Question q, m ~ AnswerMonad q) => q -> AQuestion m
 
 instance Eq (AQuestion m) where
   AQuestion a == AQuestion b = cast a == Just b
