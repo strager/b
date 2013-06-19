@@ -62,23 +62,21 @@ main = do
 
   createDirectoryIfMissing True root
 
-  let logMessage x = putStrLn ("> " ++ show x)
-  let run = runBuild ruleDatabase oracle logMessage
-  putStrLn "Building"
-  print =<< run (build (FileModTime (root </> "test")))
+  let
+    logMessage x = putStrLn ("> " ++ show x)
+    run = print <=< runBuild ruleDatabase oracle logMessage
+    testBuild = do
+      putStrLn "\nBuilding"
+      run $ build (FileModTime (root </> "test"))
+      putStrLn "\nBuilding again"
+      run $ build (FileModTime (root </> "test"))
+      putStrLn "\nBuilding dep again"
+      run $ build (FileModTime (root </> "some-dep"))
 
-  putStrLn "\nBuilding again"
-  print =<< run (build (FileModTime (root </> "test")))
-
-  putStrLn "\nBuilding dep again"
-  print =<< run (build (FileModTime (root </> "some-dep")))
+  testBuild
 
   putStrLn "\nTouching dep"
   writeFile (root </> "some-dep") "hah!"
   Oracle.dirty oracle (FileModTime (root </> "some-dep"))
 
-  putStrLn "\nBuilding again"
-  print =<< run (build (FileModTime (root </> "test")))
-
-  putStrLn "\nBuilding dep again"
-  print =<< run (build (FileModTime (root </> "some-dep")))
+  testBuild
