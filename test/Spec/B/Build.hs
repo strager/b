@@ -26,7 +26,6 @@ import qualified Data.Map as Map
 import B.Build
 import B.Log
 import B.Monad
-import B.Oracle (Oracle)
 import B.Question
 import B.Rule
 import B.RuleDatabase (RuleDatabase)
@@ -48,12 +47,9 @@ instance Question B where
   answer (B x) = return $ reverse x
 
 newtype M a = M
-  { unM :: StateT (PureOracle.State M)
-    (WriterT [LogMessage] IO) a
+  { unM :: WriterT [LogMessage]
+    (StateT (PureOracle.State M) IO) a
   } deriving (Functor, Applicative, Monad, MonadIO)
-
-oracle :: Oracle M
-oracle = PureOracle.mkOracle (M get) (M . modify)
 
 -- | Questions and their dependencies.
 data R q = R (Map q [AQuestion M])
@@ -80,17 +76,21 @@ needAQuestion_ (AQuestion q) = need_ q
 
 testBuild
   :: [RuleDatabase M]
-  -> [LogMessage]
+  -> [[LogMessage]]
   -> Build M a
   -> Expectation
-testBuild dbs expectedLogs m = do
-  logMessages <- execWriterT
-    $ evalStateT go PureOracle.empty 
-  logMessages `shouldBe` expectedLogs
+testBuild dbs expectedLogs m = evalStateT
+  (mapM_ testOneBuild expectedLogs) PureOracle.empty
   where
-  logger message = M . lift $ tell [message]
+  testOneBuild expected = do
+    logMessages <- execWriterT go
+    lift $ logMessages `shouldBe` expected
+
   go = void . unM $ runBuild db oracle logger m
   db = mconcat dbs
+  oracle = PureOracle.mkOracle
+    (M $ lift get) (M . lift . modify)
+  logger message = M $ tell [message]
 
 a :: String -> AQuestion M
 a = AQuestion . A
@@ -102,19 +102,25 @@ spec :: Spec
 spec = do
   it "No rule" $ testBuild
     []
-    [NoRuleError (A "hi")]
+    [ [NoRuleError (A "hi")]
+    , [NoRuleError (A "hi")]
+    ]
     $ build (A "hi")
 
   it "No rule for dependency" $ testBuild
     [rdb (A "hi") [AQuestion $ A "bye"]]
-    [ Building (A "hi")
-    , NoRuleError (A "bye")
-    , DoneBuilding (A "hi")
+    [ [ Building (A "hi")
+      , NoRuleError (A "bye")
+      , DoneBuilding (A "hi")
+      ]
+    , [AlreadyBuilt (A "hi")]
     ] $ build (A "hi")
 
   it "Build one" $ testBuild
     [rdb (A "hi") []]
-    [Building (A "hi"), DoneBuilding (A "hi")]
+    [ [Building (A "hi"), DoneBuilding (A "hi")]
+    , [AlreadyBuilt (A "hi")]
+    ]
     $ build (A "hi")
 
   it "Build first rule" $ testBuild
@@ -122,7 +128,9 @@ spec = do
     , rdb (A "2") []
     , rdb (A "3") []
     ]
-    [Building (A "1"), DoneBuilding (A "1")]
+    [ [Building (A "1"), DoneBuilding (A "1")]
+    , [AlreadyBuilt (A "1")]
+    ]
     $ build (A "1")
 
   it "Build second rule" $ testBuild
@@ -130,7 +138,9 @@ spec = do
     , rdb (A "2") []
     , rdb (A "3") []
     ]
-    [Building (A "2"), DoneBuilding (A "2")]
+    [ [Building (A "2"), DoneBuilding (A "2")]
+    , [AlreadyBuilt (A "2")]
+    ]
     $ build (A "2")
 
   it "Build third rule" $ testBuild
@@ -138,7 +148,9 @@ spec = do
     , rdb (A "2") []
     , rdb (A "3") []
     ]
-    [Building (A "3"), DoneBuilding (A "3")]
+    [ [Building (A "3"), DoneBuilding (A "3")]
+    , [AlreadyBuilt (A "3")]
+    ]
     $ build (A "3")
 
   it "Chain with same rule type" $ testBuild
@@ -147,14 +159,16 @@ spec = do
     , rdb (A "3") [a "4"]
     , rdb (A "4") []
     ]
-    [ Building (A "1")
-    , Building (A "2")
-    , Building (A "3")
-    , Building (A "4")
-    , DoneBuilding (A "4")
-    , DoneBuilding (A "3")
-    , DoneBuilding (A "2")
-    , DoneBuilding (A "1")
+    [ [ Building (A "1")
+      , Building (A "2")
+      , Building (A "3")
+      , Building (A "4")
+      , DoneBuilding (A "4")
+      , DoneBuilding (A "3")
+      , DoneBuilding (A "2")
+      , DoneBuilding (A "1")
+      ]
+    , [AlreadyBuilt (A "1")]
     ] $ build (A "1")
 
   it "Chain with interleaved rule type" $ testBuild
@@ -163,12 +177,14 @@ spec = do
     , rdb (A "3") [b "4"]
     , rdb (B "4") []
     ]
-    [ Building (A "1")
-    , Building (B "2")
-    , Building (A "3")
-    , Building (B "4")
-    , DoneBuilding (B "4")
-    , DoneBuilding (A "3")
-    , DoneBuilding (B "2")
-    , DoneBuilding (A "1")
+    [ [ Building (A "1")
+      , Building (B "2")
+      , Building (A "3")
+      , Building (B "4")
+      , DoneBuilding (B "4")
+      , DoneBuilding (A "3")
+      , DoneBuilding (B "2")
+      , DoneBuilding (A "1")
+      ]
+    , [AlreadyBuilt (A "1")]
     ] $ build (A "1")
