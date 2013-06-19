@@ -6,5 +6,4 @@ main :: IO ()
 main = hspec spec
 
 spec :: Spec
-spec = do
-  describe "Spec.B.Build" Spec.B.Build.spec
+spec = describe "Spec.B.Build" Spec.B.Build.spec
