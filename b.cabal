@@ -47,6 +47,23 @@ executable example-B
 
   ghc-options: -Wall
 
+executable example-Tar
+  main-is: Main.hs
+  hs-source-dirs: examples/Tar
+
+  build-depends:
+    b,
+    base,
+    containers,
+    directory,
+    filepath,
+    process,
+    semigroups,
+    transformers,
+    unix
+
+  ghc-options: -Wall
+
 test-suite spec
   type: exitcode-stdio-1.0
   hs-source-dirs: test
