@@ -35,7 +35,8 @@ instance Question FileModTime where
   type Answer FileModTime = Posix.EpochTime
   type AnswerMonad FileModTime = IO
   answer (FileModTime path)
-    = liftM Posix.modificationTime
+    -- TODO Exceptions
+    = liftM (Right . Posix.modificationTime)
     . liftIO $ Posix.getFileStatus path
 
 newtype FileMap = FileMap (Map FilePath [BuildRule IO ()])

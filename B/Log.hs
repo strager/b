@@ -10,7 +10,7 @@ import Data.Typeable
 import B.Question
 
 data LogMessage where
-  NoRuleError :: (Question q) => q -> LogMessage
+  Exception :: String -> LogMessage
 
   Building :: (Question q) => q -> LogMessage
   Rebuilding :: (Question q) => q -> LogMessage
@@ -19,7 +19,7 @@ data LogMessage where
 
 instance Show LogMessage where
   showsPrec _ message = case message of
-    NoRuleError q -> showString "No rule to build " . shows q
+    Exception ex -> shows ex
     Building q -> showString "Building " . shows q . showString "..."
     Rebuilding q -> showString "Rebuilding " . shows q . showString "..."
     AlreadyBuilt q -> showString "Already built " . shows q
@@ -27,7 +27,7 @@ instance Show LogMessage where
 
 instance Eq LogMessage where
   lhs == rhs = case (lhs, rhs) of
-    (NoRuleError  a, NoRuleError  b) -> cast a == Just b
+    (Exception    a, Exception    b) -> a == b
     (Building     a, Building     b) -> cast a == Just b
     (Rebuilding   a, Rebuilding   b) -> cast a == Just b
     (AlreadyBuilt a, AlreadyBuilt b) -> cast a == Just b
@@ -35,5 +35,5 @@ instance Eq LogMessage where
     _ -> False
 
 isError :: LogMessage -> Bool
-isError (NoRuleError _) = True
+isError (Exception _) = True
 isError _ = False

@@ -27,6 +27,7 @@ library
   build-depends:
     base ==4.6.*,
     containers ==0.5.*,
+    either,
     semigroups ==0.9.*,
     stm ==2.4.*,
     transformers ==0.3.*

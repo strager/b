@@ -12,19 +12,24 @@ module B.Monad
   , liftBuild
   , logBuild
   , logRule
+  , throwBuild
   ) where
 
 import Control.Applicative
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
+import Control.Monad.Trans.Either
 import Control.Monad.Trans.Reader
+
+import qualified Control.Exception as Ex
 
 import B.Log (LogMessage)
 import B.Oracle
 import B.Question
 import B.RuleDatabase
 
-newtype Build m a = Build (ReaderT (BuildEnv m) m a)
+newtype Build m a = Build
+  (ReaderT (BuildEnv m) (EitherT [Ex.SomeException] m) a)
   deriving
   ( Applicative
   , Functor
@@ -33,7 +38,7 @@ newtype Build m a = Build (ReaderT (BuildEnv m) m a)
   )
 
 instance MonadTrans Build where
-  lift = Build . lift
+  lift = Build . lift . lift
 
 data BuildEnv m = BuildEnv
   { ruleDatabase :: RuleDatabase m
@@ -54,9 +59,9 @@ runBuild
   -> Oracle m
   -> (LogMessage -> m ())
   -> Build m a
-  -> m a
+  -> m (Either [Ex.SomeException] a)
 runBuild ruleDatabase' oracle' logger' (Build m)
-  = runReaderT m BuildEnv
+  = runEitherT $ runReaderT m BuildEnv
     { ruleDatabase = ruleDatabase'
     , oracle = oracle'
     , logger = logger'
@@ -86,3 +91,10 @@ logBuild message = do
 
 logRule :: (Monad m) => LogMessage -> BuildRule m ()
 logRule = liftBuild . logBuild
+
+throwBuild
+  :: (Ex.Exception ex, Monad m)
+  => ex -> Build m a
+throwBuild ex
+  = Build . lift
+  $ left [Ex.toException ex]

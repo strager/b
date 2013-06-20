@@ -9,6 +9,7 @@ module B.Question
   , AQuestion(..)
   ) where
 
+import Control.Exception (SomeException)
 import Data.Typeable
 
 type Value a = (Eq a, Show a, Typeable a)
@@ -17,7 +18,7 @@ class (Monad (AnswerMonad q), Value q, Value (Answer q))
   => Question q where
   type Answer q :: *
   type AnswerMonad q :: * -> *
-  answer :: q -> AnswerMonad q (Answer q)
+  answer :: q -> AnswerMonad q (Either SomeException (Answer q))
 
 data AQuestion m where
   AQuestion :: (Question q, m ~ AnswerMonad q) => q -> AQuestion m

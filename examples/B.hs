@@ -33,7 +33,8 @@ instance Question FileModTime where
   type Answer FileModTime = Posix.EpochTime
   type AnswerMonad FileModTime = IO
   answer (FileModTime path)
-    = liftM Posix.modificationTime
+    -- TODO Exceptions
+    = liftM (Right . Posix.modificationTime)
     . liftIO $ Posix.getFileStatus path
 
 instance (Question q, Rule q r) => Rule q [r] where

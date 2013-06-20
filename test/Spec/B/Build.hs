@@ -39,12 +39,12 @@ newtype B = B String deriving (Eq, Ord, Show, Typeable)
 instance Question A where
   type Answer A = String
   type AnswerMonad A = M
-  answer (A x) = return x
+  answer (A x) = return $ Right x
 
 instance Question B where
   type Answer B = String
   type AnswerMonad B = M
-  answer (B x) = return $ reverse x
+  answer (B x) = return . Right $ reverse x
 
 newtype M a = M
   { unM :: WriterT [LogMessage]
@@ -102,26 +102,25 @@ spec :: Spec
 spec = do
   it "No rule" $ testBuild
     []
-    [ [NoRuleError (A "hi")]
-    , [NoRuleError (A "hi")]
-    ]
-    $ build (A "hi")
+    [ [Exception . show $ NoRule (A "hi")]
+    , [Exception . show $ NoRule (A "hi")]
+    ] $ build (A "hi")
 
   it "No rule for dependency" $ testBuild
     [rdb (A "hi") [AQuestion $ A "bye"]]
     [ [ Building (A "hi")
-      , NoRuleError (A "bye")
-      , DoneBuilding (A "hi")
+      , Exception . show $ NoRule (A "bye")
       ]
-    , [AlreadyBuilt (A "hi")]
+    , [ Building (A "hi")
+      , Exception . show $ NoRule (A "bye")
+      ]
     ] $ build (A "hi")
 
   it "Build one" $ testBuild
     [rdb (A "hi") []]
     [ [Building (A "hi"), DoneBuilding (A "hi")]
     , [AlreadyBuilt (A "hi")]
-    ]
-    $ build (A "hi")
+    ] $ build (A "hi")
 
   it "Build first rule" $ testBuild
     [ rdb (A "1") []
@@ -130,8 +129,7 @@ spec = do
     ]
     [ [Building (A "1"), DoneBuilding (A "1")]
     , [AlreadyBuilt (A "1")]
-    ]
-    $ build (A "1")
+    ] $ build (A "1")
 
   it "Build second rule" $ testBuild
     [ rdb (A "1") []
@@ -140,8 +138,7 @@ spec = do
     ]
     [ [Building (A "2"), DoneBuilding (A "2")]
     , [AlreadyBuilt (A "2")]
-    ]
-    $ build (A "2")
+    ] $ build (A "2")
 
   it "Build third rule" $ testBuild
     [ rdb (A "1") []
@@ -150,8 +147,7 @@ spec = do
     ]
     [ [Building (A "3"), DoneBuilding (A "3")]
     , [AlreadyBuilt (A "3")]
-    ]
-    $ build (A "3")
+    ] $ build (A "3")
 
   it "Chain with same rule type" $ testBuild
     [ rdb (A "1") [a "2"]
