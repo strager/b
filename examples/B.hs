@@ -8,7 +8,6 @@
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Foldable (asum)
 import Data.Typeable
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
@@ -38,25 +37,26 @@ instance Question FileModTime where
     . liftIO $ Posix.getFileStatus path
 
 instance (Question q, Rule q r) => Rule q [r] where
-  executeRule q rules = asum $ map (executeRule q) rules
+  queryRule q = concatMap (queryRule q)
 
-newtype FunctionIO q = Function (q -> Maybe (BuildRule IO ()))
+newtype FunctionIO q = Function (q -> [BuildRule IO ()])
   deriving (Typeable)
 
 instance (Question q, IO ~ AnswerMonad q) => Rule q (FunctionIO q) where
-  executeRule q (Function rule) = rule q
+  queryRule q (Function rule) = rule q
 
 root :: FilePath
 root = "example-build-dir"
 
-putFileName :: FileModTime -> Maybe (BuildRule IO ())
-putFileName (FileModTime path) = Just $ do
+putFileName :: FileModTime -> BuildRule IO ()
+putFileName (FileModTime path) = do
   when (path == root </> "test")
     $ need_ (FileModTime (root </> "some-dep"))
   liftIO $ writeFile path path
 
 ruleDatabase :: RuleDatabase IO
-ruleDatabase = RuleDatabase.singleton [Function putFileName]
+ruleDatabase = RuleDatabase.singleton
+  [Function (\ x -> [putFileName x])]
 
 main :: IO ()
 main = do

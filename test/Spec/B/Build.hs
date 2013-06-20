@@ -66,10 +66,9 @@ instance (Ord q) => Semigroup (R q) where
 
 instance (Ord q, Question q, M ~ AnswerMonad q)
   => Rule q (R q) where
-  executeRule q (R xs) = case Map.lookup q xs of
-    Just deps -> Just
-      $ mapM_ needAQuestion_ deps
-    Nothing -> Nothing
+  queryRule q (R xs) = case Map.lookup q xs of
+    Just deps -> [mapM_ needAQuestion_ deps]
+    Nothing -> []
 
 needAQuestion_ :: AQuestion m -> BuildRule m ()
 needAQuestion_ (AQuestion q) = need_ q

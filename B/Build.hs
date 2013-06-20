@@ -66,13 +66,26 @@ instance Show NoRule where
 
 instance Exception NoRule
 
+data TooManyRules where
+  TooManyRules :: (Question q) => q -> TooManyRules
+  deriving (Typeable)
+
+instance Eq TooManyRules where
+  TooManyRules a == TooManyRules b = cast a == Just b
+
+instance Show TooManyRules where
+  showsPrec _ (TooManyRules q)
+    = showString "Multiple rules to build " . shows q
+
+instance Exception TooManyRules
+
 actuallyBuild
   :: (Question q, m ~ AnswerMonad q)
   => q -> Build m (Either SomeException (Answer q))
 actuallyBuild q = do
-  rules <- getRuleDatabase
-  case executeRule q rules of
-    Just m -> do
+  database <- getRuleDatabase
+  case queryRule q database of
+    [m] -> do
       logBuild $ Building q
       withRule q m
       mAns <- lift $ answer q
@@ -83,4 +96,5 @@ actuallyBuild q = do
           lift $ Oracle.put oracle q ans
           logBuild $ DoneBuilding q
           return $ Right ans
-    Nothing -> return $ Left (SomeException (NoRule q))
+    [] -> return $ Left (SomeException (NoRule q))
+    _rules -> return $ Left (SomeException (TooManyRules q))

@@ -14,7 +14,7 @@ module B.RuleDatabase
   , fromList
   ) where
 
-import Data.Foldable (asum)
+import Data.Maybe (maybeToList)
 import Data.Semigroup hiding (Any)
 import Data.Typeable
 import GHC.Exts (Any)
@@ -47,8 +47,8 @@ instance Monoid (RuleDatabase m) where
 instance Semigroup (RuleDatabase m)
 
 instance (Question q, m ~ AnswerMonad q) => Rule q (RuleDatabase m) where
-  executeRule q db
-    = lookupRuleSet db >>= executeRule q
+  queryRule q db
+    = maybeToList (lookupRuleSet db) >>= queryRule q
 
 lookupRuleSet
   :: forall m q. (Typeable q)
@@ -63,8 +63,8 @@ data RuleSet m q where
     -> RuleSet m q
 
 instance (Question q, m ~ AnswerMonad q) => Rule q (RuleSet m q) where
-  executeRule q ruleSet
-    = asum $ mapTo (executeRule q) ruleSet
+  queryRule q ruleSet
+    = concat $ mapTo (queryRule q) ruleSet
 
 mapTo
   :: forall b m q.

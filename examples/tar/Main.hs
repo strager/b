@@ -43,13 +43,12 @@ newtype FileMap = FileMap (Map FilePath [BuildRule IO ()])
   deriving (Typeable)
 
 instance Rule FileModTime FileMap where
-  executeRule (FileModTime path) (FileMap xs)
+  queryRule (FileModTime path) (FileMap xs)
     = case Map.lookup path xs of
       Just builders -> case builders of
-        [] -> Just fallback
-        [builder] -> Just builder
-        _ -> Nothing
-      Nothing -> Just fallback
+        [] -> [fallback]
+        _ -> builders
+      Nothing -> [fallback]
 
     where
     fallback = do
