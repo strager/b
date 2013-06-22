@@ -13,6 +13,7 @@ synopsis: Theoretically awesome build system
 library
   exposed-modules:
     B.Build,
+    B.File,
     B.Log,
     B.Monad,
     B.Oracle,
@@ -27,10 +28,13 @@ library
   build-depends:
     base ==4.6.*,
     containers ==0.5.*,
+    directory,
     either,
+    filepath,
     semigroups ==0.9.*,
     stm ==2.4.*,
-    transformers ==0.3.*
+    transformers ==0.3.*,
+    unix ==2.6.*
 
   ghc-options: -Wall
 

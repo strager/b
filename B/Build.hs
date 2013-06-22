@@ -4,6 +4,7 @@
 module B.Build
   ( NoRule(..)
   , build
+  , build_
   , need
   , need_
   ) where
@@ -52,6 +53,11 @@ build q = do
   handleError ex = do
     logBuild $ Exception (show ex)
     throwBuild ex
+
+build_
+  :: (Monad m, Question q, m ~ AnswerMonad q)
+  => q -> Build m ()
+build_ = liftM (const ()) . build
 
 data NoRule where
   NoRule :: (Question q) => q -> NoRule
