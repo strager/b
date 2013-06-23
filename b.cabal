@@ -26,15 +26,23 @@ library
     B.RuleDatabase
 
   build-depends:
-    base ==4.6.*,
-    containers ==0.5.*,
+    base >=4.6.0 && <5,
+    containers,
     directory,
     either,
     filepath,
-    semigroups ==0.9.*,
-    stm ==2.4.*,
-    transformers ==0.3.*,
-    unix ==2.6.*
+    semigroups,
+    stm,
+    transformers,
+    unix
+
+  if impl(ghc >= 7.7)
+    build-depends: contravariant >= 0.4.2
+
+  if impl(ghc >= 7.7)
+    cpp-options: -DHAS_POLYKIND_TYPEABLE=1
+  else
+    cpp-options: -DHAS_POLYKIND_TYPEABLE=0
 
   ghc-options: -Wall
 
@@ -44,11 +52,11 @@ executable example-B
 
   build-depends:
     b,
-    base ==4.6.*,
-    directory ==1.2.*,
-    filepath ==1.3.*,
-    transformers ==0.3.*,
-    unix ==2.6.*
+    base,
+    directory,
+    filepath,
+    transformers,
+    unix
 
   ghc-options: -Wall
 
@@ -78,7 +86,7 @@ test-suite spec
     b,
     base,
     containers,
-    hspec == 1.5.*,
+    hspec,
     semigroups,
     transformers
 

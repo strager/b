@@ -1,0 +1,3 @@
+[submodule "vendor/contravariant"]
+	path = vendor/contravariant
+	url = git@github.com:ekmett/contravariant.git

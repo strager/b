@@ -1,6 +1,12 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
+
+#if HAS_POLYKIND_TYPEABLE
+{-# LANGUAGE StandaloneDeriving #-}
+#endif
 
 module B.File
   ( FileMissing(..)
@@ -8,6 +14,10 @@ module B.File
   , buildFile
   , needFile
   , needFiles
+
+#if HAS_POLYKIND_TYPEABLE
+  , Typeable1  -- HACK for compatibility.
+#endif
   ) where
 
 import Control.Exception (SomeException(..), Exception)
@@ -31,13 +41,30 @@ import B.Rule
 
 import qualified B.RuleDatabase as RuleDatabase
 
-newtype FileModTime = FileModTime FilePath
-  deriving (Eq, Ord, Show, Typeable)
+#if HAS_POLYKIND_TYPEABLE
+type Typeable1 = Typeable
+#endif
 
-instance Question FileModTime where
-  type Answer FileModTime = Posix.EpochTime
-  type AnswerMonad FileModTime = IO
-  answer (FileModTime path) = do
+newtype FileModTime (m :: * -> *) = FileModTime FilePath
+  deriving (Eq, Ord, Show)
+
+#if HAS_POLYKIND_TYPEABLE
+deriving instance (Typeable m) => Typeable (FileModTime m)
+#else
+instance (Typeable1 m) => Typeable (FileModTime m) where
+  typeOf fileModTime = mkTyConApp fileModTimeTyCon [typeOf1 (f fileModTime)]
+    where
+    f :: t m -> m a
+    f = undefined
+
+fileModTimeTyCon :: TyCon
+fileModTimeTyCon = mkTyCon3 "b" "B.File" "FileModTime"
+#endif
+
+instance (MonadIO m, Typeable1 m) => Question (FileModTime m) where
+  type Answer (FileModTime m) = Posix.EpochTime
+  type AnswerMonad (FileModTime m) = m
+  answer (FileModTime path) = liftIO $ do
     exists <- doesFileExist path
     if exists
       then liftM (Right . Posix.modificationTime)
@@ -53,10 +80,22 @@ instance Show FileMissing where
 
 instance Exception FileMissing
 
-newtype FileMap = FileMap (Map FilePath [BuildRule IO ()])
-  deriving (Typeable)
+newtype FileMap m = FileMap (Map FilePath [BuildRule m ()])
 
-instance Rule FileModTime FileMap where
+#if HAS_POLYKIND_TYPEABLE
+deriving instance (Typeable m) => Typeable (FileMap m)
+#else
+instance (Typeable1 m) => Typeable (FileMap m) where
+  typeOf fileMap = mkTyConApp fileMapTyCon [typeOf1 (f fileMap)]
+    where
+    f :: t m -> m a
+    f = undefined
+
+fileMapTyCon :: TyCon
+fileMapTyCon = mkTyCon3 "b" "B.File" "FileMap"
+#endif
+
+instance (MonadIO m, Typeable1 m) => Rule (FileModTime m) (FileMap m) where
   queryRule (FileModTime path) (FileMap xs)
     = case Map.lookup path xs of
       Just builders -> case builders of
@@ -71,19 +110,23 @@ instance Rule FileModTime FileMap where
         Left ex -> liftIO $ Ex.throwIO ex
         Right _ -> return ()
 
-instance Semigroup FileMap where
+instance Semigroup (FileMap m) where
   FileMap a <> FileMap b = FileMap
     $ Map.unionWith mappend a b
 
-fileRule :: FilePath -> BuildRule IO () -> RuleDatabase IO
+fileRule
+  :: (MonadIO m, Typeable1 m)
+  => FilePath
+  -> BuildRule m ()
+  -> RuleDatabase m
 fileRule path builder = RuleDatabase.singleton
   . FileMap $ Map.singleton path [builder]
 
-buildFile :: FilePath -> Build IO ()
+buildFile :: (MonadIO m, Typeable1 m) => FilePath -> Build m ()
 buildFile = build_ . FileModTime
 
-needFile :: FilePath -> BuildRule IO ()
+needFile :: (MonadIO m, Typeable1 m) => FilePath -> BuildRule m ()
 needFile = need_ . FileModTime
 
-needFiles :: [FilePath] -> BuildRule IO ()
+needFiles :: (MonadIO m, Typeable1 m) => [FilePath] -> BuildRule m ()
 needFiles = mapM_ needFile

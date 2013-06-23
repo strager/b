@@ -15,6 +15,7 @@ clean:
 
 .PHONY: deps
 deps:
+	$(CABAL) install $(CABAL_CONFIG_FLAGS) vendor/contravariant
 	$(CABAL) install $(CABAL_CONFIG_FLAGS) --only-dependencies
 
 .PHONY: configure

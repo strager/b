@@ -4,6 +4,7 @@ import Control.Exception (throwIO)
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Semigroup
+import Data.Typeable
 import System.Directory (createDirectoryIfMissing)
 import System.Exit
 import System.FilePath ((</>))
@@ -15,12 +16,12 @@ import B.RuleDatabase (RuleDatabase)
 
 import qualified B.Oracle.InMemory as InMemory
 
-readFileLines :: FilePath -> BuildRule IO [String]
+readFileLines :: (MonadIO m, Typeable1 m) => FilePath -> BuildRule m [String]
 readFileLines path = do
   needFiles [path]
   liftM lines . liftIO $ readFile path
 
-ruleDatabase :: RuleDatabase IO
+ruleDatabase :: (MonadIO m, Typeable1 m) => RuleDatabase m
 ruleDatabase = mconcat
   [ fileRule (root </> "result.tar") $ do
     files <- readFileLines "examples/tar/list.txt"
