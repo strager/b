@@ -25,11 +25,13 @@ library
     B.Rule,
     B.RuleDatabase
 
+  other-modules:
+    Control.Monad.Trans.Either
+
   build-depends:
     base >=4.6.0 && <5,
     bytestring,
     containers,
-    either,
     semigroups,
     stm,
     system-fileio,
