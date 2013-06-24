@@ -13,6 +13,7 @@ module B.File
 
   , fileRule
   , oneFileRule
+  , filterFileRule
 
   , buildFile
 
@@ -130,6 +131,14 @@ oneFileRule
   -> RuleDatabase m
 oneFileRule path builder = fileRule
   $ \ p -> if p == path then Just builder else Nothing
+
+filterFileRule
+  :: (MonadIO m, Typeable1 m)
+  => (FilePath -> Bool)
+  -> (FilePath -> BuildRule m ())
+  -> RuleDatabase m
+filterFileRule f builder = fileRule
+  $ \ p -> if f p then Just (builder p) else Nothing
 
 buildFile
   :: (MonadIO m, Typeable1 m)

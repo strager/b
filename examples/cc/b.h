@@ -1,0 +1,6 @@
+#ifndef B_H_B5F88624_4F94_4CF1_815D_93578266529A
+#define B_H_B5F88624_4F94_4CF1_815D_93578266529A
+
+extern const char *message;
+
+#endif

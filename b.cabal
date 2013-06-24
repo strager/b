@@ -80,6 +80,23 @@ executable example-Tar
 
   ghc-options: -Wall
 
+executable example-cc
+  main-is: Main.hs
+  hs-source-dirs: examples/cc
+
+  build-depends:
+    b,
+    base,
+    containers,
+    process,
+    semigroups,
+    system-fileio,
+    system-filepath,
+    text,
+    transformers
+
+  ghc-options: -Wall
+
 test-suite spec
   type: exitcode-stdio-1.0
   hs-source-dirs: test
