@@ -10,10 +10,16 @@
 
 module B.File
   ( FileMissing(..)
+
   , fileRule
+  , oneFileRule
+
   , buildFile
+
   , needFile
   , needFiles
+
+  , readFile
 
 #if HAS_POLYKIND_TYPEABLE
   , Typeable1  -- HACK for compatibility.
@@ -23,15 +29,16 @@ module B.File
 import Control.Exception (SomeException(..), Exception)
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Map (Map)
+import Data.Maybe (maybeToList)
 import Data.Semigroup
+import Data.Time.Clock (UTCTime)
 import Data.Typeable
-import System.Directory (doesFileExist)
+import Filesystem.Path.CurrentOS
+import Prelude hiding (FilePath, readFile)
 
 import qualified Control.Exception as Ex
-import qualified Data.Map as Map
-import qualified System.Posix.Files as Posix
-import qualified System.Posix.Types as Posix
+import qualified Data.ByteString as BS
+import qualified Filesystem as FS
 
 import B.Build
 import B.Monad
@@ -62,13 +69,12 @@ fileModTimeTyCon = mkTyCon3 "b" "B.File" "FileModTime"
 #endif
 
 instance (MonadIO m, Typeable1 m) => Question (FileModTime m) where
-  type Answer (FileModTime m) = Posix.EpochTime
+  type Answer (FileModTime m) = UTCTime
   type AnswerMonad (FileModTime m) = m
   answer (FileModTime path) = liftIO $ do
-    exists <- doesFileExist path
+    exists <- FS.isFile path
     if exists
-      then liftM (Right . Posix.modificationTime)
-        $ Posix.getFileStatus path
+      then liftM Right $ FS.getModified path
       else return . Left . SomeException
         $ FileMissing path
 
@@ -80,7 +86,7 @@ instance Show FileMissing where
 
 instance Exception FileMissing
 
-newtype FileMap m = FileMap (Map FilePath [BuildRule m ()])
+newtype FileMap m = FileMap [FilePath -> [BuildRule m ()]]
 
 #if HAS_POLYKIND_TYPEABLE
 deriving instance (Typeable m) => Typeable (FileMap m)
@@ -97,12 +103,9 @@ fileMapTyCon = mkTyCon3 "b" "B.File" "FileMap"
 
 instance (MonadIO m, Typeable1 m) => Rule (FileModTime m) (FileMap m) where
   queryRule (FileModTime path) (FileMap xs)
-    = case Map.lookup path xs of
-      Just builders -> case builders of
-        [] -> [fallback]
-        _ -> builders
-      Nothing -> [fallback]
-
+    = case concatMap ($ path) xs of
+      [] -> [fallback]
+      builders -> builders
     where
     fallback = do
       mModTime <- liftIO $ answer (FileModTime path)
@@ -111,22 +114,45 @@ instance (MonadIO m, Typeable1 m) => Rule (FileModTime m) (FileMap m) where
         Right _ -> return ()
 
 instance Semigroup (FileMap m) where
-  FileMap a <> FileMap b = FileMap
-    $ Map.unionWith mappend a b
+  FileMap a <> FileMap b = FileMap $ a <> b
 
 fileRule
+  :: (MonadIO m, Typeable1 m)
+  => (FilePath -> Maybe (BuildRule m ()))
+  -> RuleDatabase m
+fileRule f = RuleDatabase.singleton
+  $ FileMap [maybeToList . f]
+
+oneFileRule
   :: (MonadIO m, Typeable1 m)
   => FilePath
   -> BuildRule m ()
   -> RuleDatabase m
-fileRule path builder = RuleDatabase.singleton
-  . FileMap $ Map.singleton path [builder]
+oneFileRule path builder = fileRule
+  $ \ p -> if p == path then Just builder else Nothing
 
-buildFile :: (MonadIO m, Typeable1 m) => FilePath -> Build m ()
+buildFile
+  :: (MonadIO m, Typeable1 m)
+  => FilePath
+  -> Build m ()
 buildFile = build_ . FileModTime
 
-needFile :: (MonadIO m, Typeable1 m) => FilePath -> BuildRule m ()
+needFile
+  :: (MonadIO m, Typeable1 m)
+  => FilePath
+  -> BuildRule m ()
 needFile = need_ . FileModTime
 
-needFiles :: (MonadIO m, Typeable1 m) => [FilePath] -> BuildRule m ()
+needFiles
+  :: (MonadIO m, Typeable1 m)
+  => [FilePath]
+  -> BuildRule m ()
 needFiles = mapM_ needFile
+
+readFile
+  :: (MonadIO m, Typeable1 m)
+  => FilePath
+  -> BuildRule m BS.ByteString
+readFile path = do
+  needFile path
+  liftIO $ FS.readFile path

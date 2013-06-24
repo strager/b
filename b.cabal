@@ -27,14 +27,15 @@ library
 
   build-depends:
     base >=4.6.0 && <5,
+    bytestring,
     containers,
-    directory,
     either,
-    filepath,
     semigroups,
     stm,
-    transformers,
-    unix
+    system-fileio,
+    system-filepath,
+    time,
+    transformers
 
   if impl(ghc >= 7.7)
     build-depends: contravariant >= 0.4.2
@@ -68,12 +69,12 @@ executable example-Tar
     b,
     base,
     containers,
-    directory,
-    filepath,
     process,
     semigroups,
-    transformers,
-    unix
+    system-fileio,
+    system-filepath,
+    text,
+    transformers
 
   ghc-options: -Wall
 
