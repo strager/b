@@ -10,9 +10,10 @@ module B.Question
   ) where
 
 import Control.Exception (SomeException)
+import Data.Binary (Binary)
 import Data.Typeable
 
-type Value a = (Eq a, Show a, Typeable a)
+type Value a = (Eq a, Binary a, Show a, Typeable a)
 
 class (Monad (AnswerMonad q), Value q, Value (Answer q))
   => Question q where

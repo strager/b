@@ -17,6 +17,7 @@ library
     B.Log,
     B.Monad,
     B.Oracle,
+    B.Oracle.Binary,
     B.Oracle.InMemory,
     B.Oracle.InMemory.Pure,
     B.Oracle.InMemory.ST,
@@ -26,16 +27,20 @@ library
     B.RuleDatabase
 
   other-modules:
+    B.Util.Binary,
     Control.Monad.Trans.Either
 
   build-depends:
     base >=4.6.0 && <5,
+    binary,
+    binary-generic,
     bytestring,
     containers,
     semigroups,
     stm,
     system-fileio,
     system-filepath,
+    text-binary,
     time,
     transformers
 
@@ -56,6 +61,8 @@ executable example-Tar
   build-depends:
     b,
     base,
+    binary,
+    bytestring,
     containers,
     process,
     semigroups,
@@ -73,9 +80,12 @@ executable example-cc
   build-depends:
     b,
     base,
+    binary,
+    bytestring,
     containers,
     process,
     semigroups,
+    stm,
     system-fileio,
     system-filepath,
     text,
@@ -91,6 +101,7 @@ test-suite spec
   build-depends:
     b,
     base,
+    binary,
     containers,
     hspec,
     semigroups,

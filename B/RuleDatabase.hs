@@ -8,6 +8,7 @@
 
 module B.RuleDatabase
   ( RuleDatabase
+  , lookupQuestion
   , empty
   , insert
   , singleton
@@ -53,9 +54,15 @@ instance (Question q, m ~ AnswerMonad q) => Rule q (RuleDatabase m) where
 lookupRuleSet
   :: forall m q. (Typeable q)
   => RuleDatabase m -> Maybe (RuleSet m q)
-lookupRuleSet (RuleDatabase xs)
+lookupRuleSet = lookupRuleSetByTypeRep
+  (typeOf (undefined :: q))
+
+lookupRuleSetByTypeRep
+  :: forall m q. TypeRep
+  -> RuleDatabase m -> Maybe (RuleSet m q)
+lookupRuleSetByTypeRep typeRep (RuleDatabase xs)
   = fmap (unsafeCoerce :: Any -> RuleSet m q)
-  $ Map.lookup (typeOf (undefined :: q)) xs
+  $ Map.lookup typeRep xs
 
 data RuleSet m q where
   RuleSet :: (Question q, m ~ AnswerMonad q)
@@ -101,6 +108,21 @@ mappendRules :: ARule m q r -> ARule m q r -> ARule m q r
 ARule a `mappendRules` ARule b = ARule $ case cast a of
   Just a' -> a' <> b
   Nothing -> error "mappendRules: Type mismatch"
+
+-- | Looks up a Question instance dictionary by its
+-- 'TypeRep'.  The TypeRep need only a valid 'Fingerprint'.
+-- The returned 'AQuestion m' contains 'undefined' as the
+-- Question instance value.
+lookupQuestion
+  :: forall m. TypeRep
+  -> RuleDatabase m
+  -> Maybe (AQuestion m)
+lookupQuestion typeRep ruleDatabase
+  = fmap mkQuestion
+  $ lookupRuleSetByTypeRep typeRep ruleDatabase
+  where
+  mkQuestion :: forall q. RuleSet m q -> AQuestion m
+  mkQuestion (RuleSet _) = AQuestion (undefined :: q)
 
 empty :: RuleDatabase m
 empty = mempty

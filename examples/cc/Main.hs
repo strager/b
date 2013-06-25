@@ -1,17 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+import Control.Concurrent.STM
 import Control.Exception (throwIO)
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Semigroup
 import Data.Text (Text)
 import Data.Typeable
+import Data.Typeable.Internal (TypeRep(TypeRep))
 import Filesystem (createTree)
 import Filesystem.Path.CurrentOS (FilePath, (</>))
 import Prelude hiding (FilePath, readFile)
 import System.Exit
 import System.Process (rawSystem)
 
+import qualified Data.Binary.Get as Binary
+import qualified Data.Binary.Put as Binary
+import qualified Data.ByteString.Lazy as BSLazy
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import qualified Filesystem as FS
@@ -19,9 +24,13 @@ import qualified Filesystem.Path.CurrentOS as Path
 
 import B.File
 import B.Monad
+import B.Oracle.Binary
+import B.Question
 import B.RuleDatabase (RuleDatabase)
 
 import qualified B.Oracle.InMemory as InMemory
+import qualified B.Oracle.InMemory.Pure as OraclePure
+import qualified B.RuleDatabase as RuleDatabase
 
 runSystem
   :: (MonadIO m, Typeable1 m)
@@ -85,13 +94,47 @@ ruleDatabase = mconcat
 root :: FilePath
 root = "example-build-dir-cc"
 
+lookupQuestion
+  :: (MonadIO m, Typeable1 m)
+  => Fingerprint
+  -> Maybe (AQuestion m{-undefined-})
+lookupQuestion fingerprint = RuleDatabase.lookupQuestion
+  (TypeRep fingerprint undefined undefined)
+  ruleDatabase
+
+readOracle
+  :: (MonadIO m, Typeable1 m)
+  => FilePath
+  -> IO (OraclePure.State m)
+readOracle path = decode `fmap` FS.readFile path
+  where
+  decode
+    = Binary.runGet (OraclePure.getState lookupQuestion)
+    . BSLazy.fromStrict
+
+writeOracle :: FilePath -> OraclePure.State m -> IO ()
+writeOracle path
+  = FS.writeFile path
+  . BSLazy.toStrict . Binary.runPut
+  . OraclePure.putState
+
 main :: IO ()
 main = do
-  oracle <- InMemory.mkSTMOracle
+  let dbPath = root </> "build.db"
+  exists <- FS.isFile dbPath
+  state <- if exists
+    then readOracle dbPath
+    else return OraclePure.empty
+
+  storage <- newTVarIO state
+  let oracle = InMemory.mkSTMOracleWithStorageIO storage
   createTree root
 
   let
     logMessage x = putStrLn ("> " ++ show x)
-    run = print <=< runBuild ruleDatabase oracle logMessage
+    run = void . runBuild ruleDatabase oracle logMessage
 
   run $ buildFile (root </> "prog")
+
+  state' <- readTVarIO storage
+  writeOracle dbPath state'

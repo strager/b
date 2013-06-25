@@ -16,11 +16,13 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Writer
+import Data.Binary (Binary)
 import Data.Map (Map)
 import Data.Semigroup
 import Data.Typeable
 import Test.Hspec
 
+import qualified Data.Binary as Binary
 import qualified Data.Map as Map
 
 import B.Build
@@ -36,10 +38,18 @@ import qualified B.RuleDatabase as RuleDatabase
 newtype A = A String deriving (Eq, Ord, Show, Typeable)
 newtype B = B String deriving (Eq, Ord, Show, Typeable)
 
+instance Binary A where
+  get = fmap A Binary.get
+  put (A x) = Binary.put x
+
 instance Question A where
   type Answer A = String
   type AnswerMonad A = M
   answer (A x) = return $ Right x
+
+instance Binary B where
+  get = fmap B Binary.get
+  put (B x) = Binary.put x
 
 instance Question B where
   type Answer B = String
