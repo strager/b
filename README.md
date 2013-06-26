@@ -11,7 +11,4 @@ b is a build system.
 * Concurrency.  Need a good, flexible model.  MVars or STM
   for management?  Explicit dictionaries for polymorphism?
 
-* Make-like top-down no-database incremental building.
-  People expect it.
-
 * More examples.  More tests.

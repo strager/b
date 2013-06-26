@@ -11,7 +11,8 @@ data Oracle m = Oracle
   { get :: (Question q, m ~ AnswerMonad q) => q -> m (Maybe (Answer q))
   , put :: (Question q, m ~ AnswerMonad q) => q -> Answer q -> m ()
 
-  , dirty :: (Question q, m ~ AnswerMonad q) => q -> AnswerMonad q ()
+  , recheck :: (Question q, m ~ AnswerMonad q) => q -> m ()
+  , recheckAll :: m ()
 
   , addDependency
     :: ( Question from

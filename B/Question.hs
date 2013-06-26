@@ -7,6 +7,7 @@
 module B.Question
   ( Question(..)
   , AQuestion(..)
+  , testAnswer
   ) where
 
 import Control.Exception (SomeException)
@@ -29,3 +30,12 @@ instance Eq (AQuestion m) where
 
 instance Show (AQuestion m) where
   showsPrec prec (AQuestion q) = showsPrec prec q
+
+-- | Answers the given question and compares against the
+-- given answer.  Returns 'False' upon failure.
+testAnswer :: (Question q) => q -> Answer q -> AnswerMonad q Bool
+testAnswer q a = do
+  mAnswer <- answer q
+  return $ case mAnswer of
+    Left _ -> False
+    Right a' -> a == a'

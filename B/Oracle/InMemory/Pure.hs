@@ -10,7 +10,7 @@ module B.Oracle.InMemory.Pure
   , empty
   , get
   , put
-  , dirty
+  , recheck
   , addDependency
   ) where
 
@@ -34,6 +34,14 @@ data State m = State
   , dependencies :: [Dependency m]
   }
 
+instance Show (State m) where
+  show (State qas deps)
+    = "questionAnswers =\n" ++ showBulleted qas
+    ++ "dependencies =\n" ++ showBulleted deps
+    where
+    showBulleted :: (Show a) => [a] -> String
+    showBulleted = unlines . map ((" - " ++) . show)
+
 getState
   :: (Fingerprint -> Maybe (AQuestion m{-undefined-}))
   -> Binary.Get (State m)
@@ -49,19 +57,30 @@ putState s = do
 mkOracle
   :: (Monad m)
   => m (State m)  -- ^ 'get'/'read'/'ask'
-  -> ((State m -> State m) -> m ())  -- ^ 'modify'
+  -> ((State m -> m (State m)) -> m ())  -- ^ 'modify'
   -> Oracle m
 mkOracle ask modify = Oracle.Oracle
   { Oracle.get = \ q -> liftM (get q) ask
-  , Oracle.put = (modify .) . put
-  , Oracle.dirty = modify . dirty
-  , Oracle.addDependency = (modify .) . addDependency
+  , Oracle.put = (modifyPure .) . put
+  , Oracle.recheck = modify . recheck
+  , Oracle.recheckAll = modify recheckAll
+  , Oracle.addDependency = (modifyPure .) . addDependency
   }
+  where
+  modifyPure f = modify (return . f)
 
 data QuestionAnswer m where
   QuestionAnswer
     :: (Question q, m ~ AnswerMonad q)
     => q -> Answer q -> QuestionAnswer m
+
+instance Show (QuestionAnswer m) where
+  show (QuestionAnswer q a) = show q ++ " := " ++ show a
+
+instance Eq (QuestionAnswer m) where
+  QuestionAnswer questionA answerA == QuestionAnswer questionB answerB
+    = cast questionA == Just questionB
+    && cast answerA == Just answerB
 
 getQuestionAnswer
   :: (Fingerprint -> Maybe (AQuestion m{-undefined-}))
@@ -95,6 +114,14 @@ data Dependency m where
        , m ~ AnswerMonad to
        )
     => from -> to -> Dependency m
+
+instance Show (Dependency m) where
+  show (Dependency from to) = show from ++ " => " ++ show to
+
+instance Eq (Dependency m) where
+  Dependency fromA toA == Dependency fromB toB
+    = cast fromA == Just fromB
+    && cast toA == Just toB
 
 getDependency
   :: (Fingerprint -> Maybe (AQuestion m{-undefined-}))
@@ -141,7 +168,15 @@ put
   :: (Question q, m ~ AnswerMonad q)
   => q -> Answer q -> State m -> State m
 put q a s = s
-  { questionAnswers = QuestionAnswer q a : questionAnswers s }
+  { questionAnswers = QuestionAnswer q a
+    `setInsert` questionAnswers s
+  }
+
+-- TODO check answer (as in recheckAll).
+recheck
+  :: (Question q, m ~ AnswerMonad q)
+  => q -> State m -> m (State m)
+recheck q = return . dirty q
 
 dirty
   :: (Question q, m ~ AnswerMonad q)
@@ -156,6 +191,17 @@ dirty q state = foldr dirty' state' dependants
 dirty' :: AQuestion m -> State m -> State m
 dirty' (AQuestion q) = dirty q
 
+recheckAll :: (Monad m) => State m -> m (State m)
+recheckAll state = do
+  badQAs <- filterM
+    (\ (QuestionAnswer q a) -> liftM not $ testAnswer q a)
+    $ questionAnswers state
+  let badQs = map questionAnswerQuestion badQAs
+  return $ foldr dirty' state badQs
+
+questionAnswerQuestion :: QuestionAnswer m -> AQuestion m
+questionAnswerQuestion (QuestionAnswer q _) = AQuestion q
+
 addDependency
   :: ( Question from
      , Question to
@@ -164,7 +210,12 @@ addDependency
      )
   => from -> to -> State m -> State m
 addDependency from to s = s
-  { dependencies = Dependency from to : dependencies s }
+  { dependencies = Dependency from to
+    `setInsert` dependencies s
+  }
+
+setInsert :: (Eq a) => a -> [a] -> [a]
+setInsert x xs = x : filter (/= x) xs
 
 findJust :: (a -> Maybe b) -> [a] -> Maybe b
 findJust f = Maybe.listToMaybe . Maybe.mapMaybe f

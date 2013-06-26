@@ -21,6 +21,7 @@ mkSTStorage = newSTRef Pure.empty
 mkSTOracleWithStorage
   :: STRef s (Pure.State (ST s))
   -> Oracle (ST s)
-mkSTOracleWithStorage storage = Pure.mkOracle
-  (readSTRef storage)
-  (modifySTRef storage)
+mkSTOracleWithStorage storage = Pure.mkOracle ask modify
+  where
+  ask = readSTRef storage
+  modify f = writeSTRef storage =<< f =<< readSTRef storage

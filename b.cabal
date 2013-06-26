@@ -19,9 +19,9 @@ library
     B.Oracle,
     B.Oracle.Binary,
     B.Oracle.InMemory,
+    B.Oracle.InMemory.MVar,
     B.Oracle.InMemory.Pure,
     B.Oracle.InMemory.ST,
-    B.Oracle.InMemory.STM,
     B.Question,
     B.Rule,
     B.RuleDatabase

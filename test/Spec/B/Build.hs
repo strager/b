@@ -14,14 +14,15 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.State
 import Control.Monad.Trans.Writer
 import Data.Binary (Binary)
 import Data.Map (Map)
 import Data.Semigroup
 import Data.Typeable
 import Test.Hspec
+import Control.Monad.Trans.State (StateT, evalStateT)
 
+import qualified Control.Monad.Trans.State as State
 import qualified Data.Binary as Binary
 import qualified Data.Map as Map
 
@@ -97,9 +98,12 @@ testBuild dbs expectedLogs m = evalStateT
 
   go = void . unM $ runBuild db oracle logger m
   db = mconcat dbs
-  oracle = PureOracle.mkOracle
-    (M $ lift get) (M . lift . modify)
+  oracle = PureOracle.mkOracle ask modify
   logger message = M $ tell [message]
+
+  ask = liftState State.get
+  modify f = liftState . State.put =<< f =<< liftState State.get
+  liftState = M . lift
 
 a :: String -> AQuestion M
 a = AQuestion . A

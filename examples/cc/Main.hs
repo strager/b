@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Control.Concurrent.STM
+import Control.Concurrent.MVar
 import Control.Exception (throwIO)
 import Control.Monad
 import Control.Monad.IO.Class
@@ -28,6 +28,7 @@ import B.Oracle.Binary
 import B.Question
 import B.RuleDatabase (RuleDatabase)
 
+import qualified B.Oracle as Oracle
 import qualified B.Oracle.InMemory as InMemory
 import qualified B.Oracle.InMemory.Pure as OraclePure
 import qualified B.RuleDatabase as RuleDatabase
@@ -126,8 +127,10 @@ main = do
     then readOracle dbPath
     else return OraclePure.empty
 
-  storage <- newTVarIO state
-  let oracle = InMemory.mkSTMOracleWithStorageIO storage
+  storage <- newMVar state
+  let oracle = InMemory.mkMVarOracleWithStorage storage
+  Oracle.recheckAll oracle
+
   createTree root
 
   let
@@ -136,5 +139,5 @@ main = do
 
   run $ buildFile (root </> "prog")
 
-  state' <- readTVarIO storage
+  state' <- takeMVar storage
   writeOracle dbPath state'
