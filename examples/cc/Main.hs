@@ -14,6 +14,7 @@ import System.Process (rawSystem)
 
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
+import qualified Filesystem as FS
 import qualified Filesystem.Path.CurrentOS as Path
 
 import B.File
@@ -50,13 +51,10 @@ parseDepFileDeps
   . Text.drop 1 . Text.dropWhile (/= ':')
 
 -- TODO Handle escapes (spaces!) and special characters.
+readDepFileDeps :: FilePath -> IO [FilePath]
 readDepFileDeps
-  :: (MonadIO m, Typeable1 m)
-  => FilePath
-  -> BuildRule m [FilePath]
-readDepFileDeps
-  = either (liftIO . throwIO) (return . parseDepFileDeps)
-  . Text.decodeUtf8' <=< readFile
+  = either throwIO (return . parseDepFileDeps)
+  . Text.decodeUtf8' <=< FS.readFile
 
 ruleDatabase :: (MonadIO m, Typeable1 m) => RuleDatabase m
 ruleDatabase = mconcat
@@ -73,7 +71,7 @@ ruleDatabase = mconcat
       ]
 
     let depfile = ofile `Path.replaceExtension` "d"
-    deps <- readDepFileDeps depfile
+    deps <- liftIO $ readDepFileDeps depfile
     needFiles deps
 
   , oneFileRule (root </> "prog") $ do
