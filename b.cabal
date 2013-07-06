@@ -28,7 +28,8 @@ library
     B.Oracle.InMemory.ST,
     B.Question,
     B.Rule,
-    B.RuleDatabase
+    B.RuleDatabase,
+    B.Simple
 
   other-modules:
     B.Util.Binary,
