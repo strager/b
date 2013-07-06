@@ -6,21 +6,26 @@ module B.Oracle.InMemory.MVar
 
 import Control.Applicative
 import Control.Concurrent.MVar
+import Control.Monad.IO.Class
 
 import B.Oracle (Oracle)
 
 import qualified B.Oracle.InMemory.Pure as Pure
 
-mkMVarOracle :: IO (Oracle IO)
+mkMVarOracle :: (MonadIO m) => IO (Oracle m)
 mkMVarOracle = mkMVarOracleWithStorage <$> mkMVarStorage
 
-mkMVarStorage :: IO (MVar (Pure.State IO))
+mkMVarStorage :: (MonadIO m) => IO (MVar (Pure.State m))
 mkMVarStorage = newMVar Pure.empty
 
 mkMVarOracleWithStorage
-  :: MVar (Pure.State IO)
-  -> Oracle IO
+  :: (MonadIO m)
+  => MVar (Pure.State m)
+  -> Oracle m
 mkMVarOracleWithStorage storage = Pure.mkOracle ask modify
   where
-  ask = readMVar storage
-  modify = modifyMVar_ storage
+  ask = liftIO $ readMVar storage
+  modify f = do
+    x <- liftIO $ takeMVar storage
+    x' <- f x
+    liftIO $ putMVar storage x'
