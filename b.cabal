@@ -10,6 +10,10 @@ license: BSD3
 maintainer: strager.nds@gmail.com
 synopsis: Theoretically awesome build system
 
+flag debug
+  description: Enable debug tracing
+  default: False
+
 library
   exposed-modules:
     B.Build,
@@ -51,6 +55,9 @@ library
     cpp-options: -DHAS_POLYKIND_TYPEABLE=1
   else
     cpp-options: -DHAS_POLYKIND_TYPEABLE=0
+
+  if flag(debug)
+    cpp-options: -DDEBUG
 
   ghc-options: -Wall
 

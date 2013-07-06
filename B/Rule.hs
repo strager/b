@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -9,10 +10,17 @@ module B.Rule
 
   , Rules(..)
   , singletonRules
+
+  , traceQueryRule
   ) where
 
 import Data.Semigroup (Semigroup)
 import Data.Typeable (Typeable)
+
+#ifdef DEBUG
+import Data.Typeable (typeOf)
+import Debug.Trace
+#endif
 
 import {-# SOURCE #-} B.Monad (BuildRule)
 import B.Question
@@ -29,3 +37,19 @@ instance (Question q, Rule q r) => Rule q (Rules q r) where
 
 singletonRules :: (Rule q r) => r -> Rules q r
 singletonRules r = Rules [(`queryRule` r)]
+
+traceQueryRule
+  :: (Rule q r, Typeable r)
+  => q -> r -> [BuildRule (AnswerMonad q) ()]
+#ifdef DEBUG
+traceQueryRule q r = trace msg $ queryRule q r
+  where
+  msg
+    = showString "queryRule' "
+    . showsPrec 11 q
+    . showString " (?::"
+    . shows (typeOf r)
+    $ showString ")" ""
+#else
+traceQueryRule = queryRule
+#endif

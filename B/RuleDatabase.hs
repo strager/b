@@ -71,11 +71,11 @@ data RuleSet m q where
 
 instance (Question q, m ~ AnswerMonad q) => Rule q (RuleSet m q) where
   queryRule q ruleSet
-    = concat $ mapTo (queryRule q) ruleSet
+    = concat $ mapTo (traceQueryRule q) ruleSet
 
 mapTo
   :: forall b m q.
-     (forall r. (Rule q r) => r -> b)
+     (forall r. (Rule q r, Typeable r) => r -> b)
   -> RuleSet m q -> [b]
 mapTo f (RuleSet xs)
   = fmap (f' . unsafeCoerce)

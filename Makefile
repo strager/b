@@ -1,8 +1,27 @@
 CABAL ?= cabal
 
 SOURCE_DIRS := B test examples
-CABAL_CONFIG_FLAGS := --enable-tests --enable-benchmarks $(CABAL_CONFIG_FLAGS)
+
+CABAL_CONFIG_FLAGS_SLOW := \
+	--enable-tests \
+	--enable-benchmarks \
+	$(CABAL_CONFIG_FLAGS)
+
+CABAL_CONFIG_FLAGS_FAST := \
+	--disable-library-profiling \
+	--disable-executable-profiling \
+	--disable-benchmarks \
+	--enable-tests \
+	-fdebug \
+	$(CABAL_CONFIG_FLAGS)
+
 CABAL_HADDOCK_FLAGS := --hyperlink-source
+
+ifeq ($(dev), 1)
+	CABAL_CONFIG_FLAGS := $(CABAL_CONFIG_FLAGS_FAST)
+else
+	CABAL_CONFIG_FLAGS := $(CABAL_CONFIG_FLAGS_SLOW)
+endif
 
 .NOTPARALLEL:
 
