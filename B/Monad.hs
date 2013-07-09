@@ -3,7 +3,10 @@
 
 module B.Monad
   ( Build
+  , BuildEnv(..)
   , BuildRule
+
+  , defaultLogger
   , runBuild
   , withRule
   , getRuleDatabase
@@ -42,8 +45,13 @@ instance MonadTrans Build where
 
 data BuildEnv m = BuildEnv
   { ruleDatabase :: RuleDatabase m
+  -- ^ All rules useable for building.
+
   , oracle :: Oracle m
+  -- ^ The source of answers to 'Question's.
+
   , logger :: LogMessage -> m ()
+  -- ^ Records diagnostics (or not).
   }
 
 newtype BuildRule m a = BuildRule (ReaderT (AQuestion m) (Build m) a)
@@ -54,18 +62,15 @@ newtype BuildRule m a = BuildRule (ReaderT (AQuestion m) (Build m) a)
   , MonadIO
   )
 
+defaultLogger :: (Monad m) => LogMessage -> m ()
+defaultLogger _message = return ()
+
 runBuild
-  :: RuleDatabase m
-  -> Oracle m
-  -> (LogMessage -> m ())
+  :: BuildEnv m
   -> Build m a
   -> m (Either [Ex.SomeException] a)
-runBuild ruleDatabase' oracle' logger' (Build m)
-  = runEitherT $ runReaderT m BuildEnv
-    { ruleDatabase = ruleDatabase'
-    , oracle = oracle'
-    , logger = logger'
-    }
+runBuild buildEnv (Build m)
+  = runEitherT $ runReaderT m buildEnv
 
 withRule
   :: (Question q, m ~ AnswerMonad q)

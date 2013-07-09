@@ -25,11 +25,11 @@ import qualified Filesystem as FS
 import qualified Filesystem.Path.CurrentOS as Path
 
 import B.File
-import B.Monad
 import B.Oracle.Binary
 import B.Question
 import B.RuleDatabase (RuleDatabase)
 
+import qualified B.Monad as B
 import qualified B.Oracle.InMemory as InMemory
 import qualified B.Oracle.InMemory.Pure as OraclePure
 import qualified B.RuleDatabase as RuleDatabase
@@ -38,7 +38,7 @@ import qualified B.RuleDatabase as RuleDatabase
 readFileLines
   :: (MonadIO m, Typeable1 m)
   => FilePath
-  -> BuildRule m [Text]
+  -> B.BuildRule m [Text]
 readFileLines
   = either (liftIO . throwIO) (return . Text.lines)
   . Text.decodeUtf8' <=< readFile
@@ -99,7 +99,11 @@ main = do
 
   let
     logMessage x = putStrLn ("> " ++ show x)
-    run = print <=< runBuild ruleDatabase oracle logMessage
+    run = print <=< B.runBuild B.BuildEnv
+      { B.ruleDatabase = ruleDatabase
+      , B.oracle = oracle
+      , B.logger = logMessage
+      }
 
   run $ buildFile (root </> "result.tar")
 

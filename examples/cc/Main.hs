@@ -23,11 +23,11 @@ import qualified Filesystem as FS
 import qualified Filesystem.Path.CurrentOS as Path
 
 import B.File
-import B.Monad
 import B.Oracle.Binary
 import B.Question
 import B.RuleDatabase (RuleDatabase)
 
+import qualified B.Monad as B
 import qualified B.Oracle as Oracle
 import qualified B.Oracle.InMemory as InMemory
 import qualified B.Oracle.InMemory.Pure as OraclePure
@@ -37,7 +37,7 @@ runSystem
   :: (MonadIO m, Typeable1 m)
   => String    -- ^ Program.
   -> [String]  -- ^ Arguments.
-  -> BuildRule m ()
+  -> B.BuildRule m ()
 runSystem prog args = liftIO $ do
   liftIO . putStrLn $ prog ++ " " ++ unwords args
   exit <- rawSystem prog args
@@ -135,7 +135,11 @@ main = do
 
   let
     logMessage x = putStrLn ("> " ++ show x)
-    run = void . runBuild ruleDatabase oracle logMessage
+    run = void . B.runBuild B.BuildEnv
+      { B.ruleDatabase = ruleDatabase
+      , B.oracle = oracle
+      , B.logger = logMessage
+      }
 
   run $ buildFile (root </> "prog")
 

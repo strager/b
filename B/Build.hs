@@ -15,20 +15,21 @@ import Control.Monad.Trans.Class
 import Data.Typeable
 
 import B.Log
-import B.Monad
+import B.Monad (Build, BuildRule)
 import B.Question
 import B.Rule
 
+import qualified B.Monad as B
 import qualified B.Oracle as Oracle
 
 need
   :: (Monad m, Question q, m ~ AnswerMonad q)
   => q -> BuildRule m (Answer q)
 need q = do
-  oracle <- liftBuild getOracle
-  AQuestion from <- getQuestion
-  liftBuild . lift $ Oracle.addDependency oracle from q
-  liftBuild $ build q
+  oracle <- B.liftBuild B.getOracle
+  AQuestion from <- B.getQuestion
+  B.liftBuild . lift $ Oracle.addDependency oracle from q
+  B.liftBuild $ build q
 
 need_
   :: (Monad m, Question q, m ~ AnswerMonad q)
@@ -39,11 +40,11 @@ build
   :: (Monad m, Question q, m ~ AnswerMonad q)
   => q -> Build m (Answer q)
 build q = do
-  oracle <- getOracle
+  oracle <- B.getOracle
   mExistingAnswer <- lift $ Oracle.get oracle q
   case mExistingAnswer of
     Just existingAnswer -> do
-      logBuild $ AlreadyBuilt q
+      B.logBuild $ AlreadyBuilt q
       return existingAnswer
     Nothing -> actuallyBuild q
       >>= either handleError return
@@ -51,8 +52,8 @@ build q = do
   where
   handleError :: (Monad m) => SomeException -> Build m a
   handleError ex = do
-    logBuild $ Exception (show ex)
-    throwBuild ex
+    B.logBuild $ Exception (show ex)
+    B.throwBuild ex
 
 build_
   :: (Monad m, Question q, m ~ AnswerMonad q)
@@ -89,18 +90,18 @@ actuallyBuild
   :: (Question q, m ~ AnswerMonad q)
   => q -> Build m (Either SomeException (Answer q))
 actuallyBuild q = do
-  database <- getRuleDatabase
+  database <- B.getRuleDatabase
   case queryRule q database of
     [m] -> do
-      logBuild $ Building q
-      withRule q m
+      B.logBuild $ Building q
+      B.withRule q m
       mAns <- lift $ answer q
       case mAns of
         Left ex -> return $ Left ex
         Right ans -> do
-          oracle <- getOracle
+          oracle <- B.getOracle
           lift $ Oracle.put oracle q ans
-          logBuild $ DoneBuilding q
+          B.logBuild $ DoneBuilding q
           return $ Right ans
     [] -> return $ Left (SomeException (NoRule q))
     _rules -> return $ Left (SomeException (TooManyRules q))

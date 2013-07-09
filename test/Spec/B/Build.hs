@@ -28,11 +28,11 @@ import qualified Data.Map as Map
 
 import B.Build
 import B.Log
-import B.Monad
 import B.Question
 import B.Rule
 import B.RuleDatabase (RuleDatabase)
 
+import qualified B.Monad as B
 import qualified B.Oracle.InMemory.Pure as PureOracle
 import qualified B.RuleDatabase as RuleDatabase
 
@@ -81,13 +81,13 @@ instance (Ord q, Question q, M ~ AnswerMonad q)
     Just deps -> [mapM_ needAQuestion_ deps]
     Nothing -> []
 
-needAQuestion_ :: AQuestion m -> BuildRule m ()
+needAQuestion_ :: AQuestion m -> B.BuildRule m ()
 needAQuestion_ (AQuestion q) = need_ q
 
 testBuild
   :: [RuleDatabase M]
   -> [[LogMessage]]
-  -> Build M a
+  -> B.Build M a
   -> Expectation
 testBuild dbs expectedLogs m = evalStateT
   (mapM_ testOneBuild expectedLogs) PureOracle.empty
@@ -96,7 +96,11 @@ testBuild dbs expectedLogs m = evalStateT
     logMessages <- execWriterT go
     lift $ logMessages `shouldBe` expected
 
-  go = void . unM $ runBuild db oracle logger m
+  go = void . unM $ B.runBuild B.BuildEnv
+    { B.ruleDatabase = db
+    , B.oracle = oracle
+    , B.logger = logger
+    } m
   db = mconcat dbs
   oracle = PureOracle.mkOracle ask modify
   logger message = M $ tell [message]

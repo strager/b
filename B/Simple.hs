@@ -20,12 +20,12 @@ import qualified Data.ByteString.Lazy as BSLazy
 import qualified Filesystem as FS
 import qualified Filesystem.Path.CurrentOS as FSPath
 
-import B.Log (LogMessage)
-import B.Monad
+import B.Monad (Build)
 import B.Oracle.Binary
 import B.Question
 import B.RuleDatabase (RuleDatabase)
 
+import qualified B.Monad as B
 import qualified B.Oracle as Oracle
 import qualified B.Oracle.InMemory as InMemory
 import qualified B.Oracle.InMemory.Pure as OraclePure
@@ -51,7 +51,11 @@ evalBuild dbPath ruleDatabase m = do
   let oracle = InMemory.mkMVarOracleWithStorage storage
   Oracle.recheckAll oracle
 
-  mResult <- runBuild ruleDatabase oracle logMessage m
+  mResult <- B.runBuild B.BuildEnv
+    { B.ruleDatabase = ruleDatabase
+    , B.oracle = oracle
+    , B.logger = B.defaultLogger
+    } m
 
   -- Close the handle before writing to avoid problems with
   -- file locking.
@@ -64,9 +68,6 @@ evalBuild dbPath ruleDatabase m = do
   either (liftIO . throwIO . head) return mResult
 
   where
-  logMessage :: LogMessage -> m ()
-  logMessage x = liftIO $ putStrLn ("> " ++ show x)
-
   lookupQuestion
     :: Fingerprint
     -> Maybe (AQuestion m{-undefined-})
