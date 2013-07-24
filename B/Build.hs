@@ -6,7 +6,9 @@ module B.Build
   , build
   , build_
   , need
+  , needs
   , need_
+  , needs_
   ) where
 
 import Control.Exception (Exception, SomeException(..))
@@ -21,25 +23,60 @@ import B.Rule
 
 import qualified B.Monad as B
 import qualified B.Oracle as Oracle
+import qualified B.Parallel as Par
 
 need
   :: (Monad m, Question q, m ~ AnswerMonad q)
   => q -> BuildRule m (Answer q)
 need q = do
+  AQuestion from <- B.getQuestion
+  B.liftBuild . B.logBuild
+    $ BuildingDependencies from [AQuestion q]
+  need1 q
+
+-- | Like 'need', but does not perform logging.  Private.
+need1
+  :: (Monad m, Question q, m ~ AnswerMonad q)
+  => q -> BuildRule m (Answer q)
+need1 q = do
   oracle <- B.liftBuild B.getOracle
   AQuestion from <- B.getQuestion
-  B.liftBuild . lift $ Oracle.addDependency oracle from q
+  lift $ Oracle.addDependency oracle from q
   B.liftBuild $ build q
 
+-- | Like 'mapM' 'need', but allowing for parallelism.
+needs
+  :: (Monad m, Question q, m ~ AnswerMonad q)
+  => [q] -> BuildRule m [Answer q]
+needs qs = do
+  AQuestion from <- B.getQuestion
+  B.liftBuild . B.logBuild
+    $ BuildingDependencies from (map AQuestion qs)
+
+  par <- B.getBuildRuleParallel
+  Par.mapM par need1 qs
+
+-- | Like 'need', but ignoring the resulting answer.
 need_
   :: (Monad m, Question q, m ~ AnswerMonad q)
   => q -> BuildRule m ()
 need_ = liftM (const ()) . need
 
+-- | Like 'mapM_' 'need_', but allowing for parallelism.
+needs_
+  :: (Monad m)
+  => [AQuestion m] -> BuildRule m ()
+needs_ qs = do
+  par <- B.getBuildRuleParallel
+  Par.mapM_ par f qs
+  where
+  f :: (Monad m) => AQuestion m -> BuildRule m ()
+  f (AQuestion q) = need_ q
+
 build
   :: (Monad m, Question q, m ~ AnswerMonad q)
   => q -> Build m (Answer q)
-build q = do
+build q = flip B.latchBuild q $ do
   oracle <- B.getOracle
   mExistingAnswer <- lift $ Oracle.get oracle q
   case mExistingAnswer of

@@ -7,6 +7,7 @@
 module B.Question
   ( Question(..)
   , AQuestion(..)
+  , questionEquals
   , testAnswer
   ) where
 
@@ -30,6 +31,13 @@ instance Eq (AQuestion m) where
 
 instance Show (AQuestion m) where
   showsPrec prec (AQuestion q) = showsPrec prec q
+
+questionEquals
+  :: AQuestion m
+  -> AQuestion m'
+  -> Bool
+AQuestion a `questionEquals` AQuestion b
+  = cast a == Just b
 
 -- | Answers the given question and compares against the
 -- given answer.  Returns 'False' upon failure.

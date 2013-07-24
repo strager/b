@@ -139,6 +139,8 @@ main = do
       { B.ruleDatabase = ruleDatabase
       , B.oracle = oracle
       , B.logger = logMessage
+      , B.latch = B.defaultLatch
+      , B.parallel = B.defaultParallel
       }
 
   run $ buildFile (root </> "prog")

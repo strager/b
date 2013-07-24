@@ -18,6 +18,7 @@ library
   exposed-modules:
     B.Build,
     B.File,
+    B.Latch,
     B.Log,
     B.Monad,
     B.Oracle,
@@ -26,6 +27,7 @@ library
     B.Oracle.InMemory.MVar,
     B.Oracle.InMemory.Pure,
     B.Oracle.InMemory.ST,
+    B.Parallel,
     B.Question,
     B.Rule,
     B.RuleDatabase,
@@ -41,6 +43,7 @@ library
     binary-generic,
     bytestring,
     containers,
+    monad-parallel,
     semigroups,
     stm,
     system-fileio,

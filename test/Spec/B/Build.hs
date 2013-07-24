@@ -100,6 +100,8 @@ testBuild dbs expectedLogs m = evalStateT
     { B.ruleDatabase = db
     , B.oracle = oracle
     , B.logger = logger
+    , B.latch = B.defaultLatch
+    , B.parallel = B.defaultParallel
     } m
   db = mconcat dbs
   oracle = PureOracle.mkOracle ask modify
@@ -126,9 +128,11 @@ spec = do
   it "No rule for dependency" $ testBuild
     [rdb (A "hi") [AQuestion $ A "bye"]]
     [ [ Building (A "hi")
+      , BuildingDependencies (A "hi") [a "bye"]
       , Exception . show $ NoRule (A "bye")
       ]
     , [ Building (A "hi")
+      , BuildingDependencies (A "hi") [a "bye"]
       , Exception . show $ NoRule (A "bye")
       ]
     ] $ build (A "hi")
@@ -173,8 +177,11 @@ spec = do
     , rdb (A "4") []
     ]
     [ [ Building (A "1")
+      , BuildingDependencies (A "1") [a "2"]
       , Building (A "2")
+      , BuildingDependencies (A "2") [a "3"]
       , Building (A "3")
+      , BuildingDependencies (A "3") [a "4"]
       , Building (A "4")
       , DoneBuilding (A "4")
       , DoneBuilding (A "3")
@@ -191,8 +198,11 @@ spec = do
     , rdb (B "4") []
     ]
     [ [ Building (A "1")
+      , BuildingDependencies (A "1") [b "2"]
       , Building (B "2")
+      , BuildingDependencies (B "2") [a "3"]
       , Building (A "3")
+      , BuildingDependencies (A "3") [b "4"]
       , Building (B "4")
       , DoneBuilding (B "4")
       , DoneBuilding (A "3")

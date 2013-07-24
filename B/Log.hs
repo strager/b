@@ -16,6 +16,11 @@ data LogMessage where
   Rebuilding :: (Question q) => q -> LogMessage
   AlreadyBuilt :: (Question q) => q -> LogMessage
   DoneBuilding :: (Question q) => q -> LogMessage
+  BuildingDependencies
+    :: (Question q)
+    => q
+    -> [AQuestion m]
+    -> LogMessage
 
 instance Show LogMessage where
   showsPrec _ message = case message of
@@ -24,6 +29,9 @@ instance Show LogMessage where
     Rebuilding q -> showString "Rebuilding " . shows q . showString "..."
     AlreadyBuilt q -> showString "Already built " . shows q
     DoneBuilding q -> showString "Done building " . shows q
+    BuildingDependencies from to
+      -> showString "Added dependencies of " . shows from . showString ": "
+      . showString (unwords (map show to))
 
 instance Eq LogMessage where
   lhs == rhs = case (lhs, rhs) of
@@ -32,6 +40,11 @@ instance Eq LogMessage where
     (Rebuilding   a, Rebuilding   b) -> cast a == Just b
     (AlreadyBuilt a, AlreadyBuilt b) -> cast a == Just b
     (DoneBuilding a, DoneBuilding b) -> cast a == Just b
+
+    (BuildingDependencies a aDeps, BuildingDependencies b bDeps)
+      -> cast a == Just b
+      && and (zipWith questionEquals aDeps bDeps)
+
     _ -> False
 
 isError :: LogMessage -> Bool
